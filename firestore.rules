@@ -1,0 +1,39 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users collection
+    match /users/{userId} {
+      // User can read/update their own document
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null;
+      allow delete: if false;
+
+      // Doctors/Admins can read any user
+      allow read: if request.auth != null &&
+                  get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['doctor', 'admin'];
+
+      // Doctors/Admins can write any user (optional, adjust as needed)
+      allow write: if request.auth != null &&
+                   get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['doctor', 'admin'];
+    }
+
+    // Matches collection
+    match /matches/{matchId} {
+      // Donor can read their own matches
+      allow read: if request.auth != null && request.auth.uid == resource.data.donorId;
+
+      // Recipient can read their own matches
+      allow read: if request.auth != null && request.auth.uid == resource.data.recipientId;
+
+      // Doctors/Admins can read/write all matches
+      allow read, write: if request.auth != null &&
+                         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['doctor', 'admin'];
+    }
+
+    // Optional: other collections
+    match /{document=**} {
+      allow read, write: if false; // deny by default
+    }
+  }
+}

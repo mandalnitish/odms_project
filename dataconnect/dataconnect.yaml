@@ -1,0 +1,12 @@
+specVersion: "v1"
+serviceId: "odmsproject"
+location: "us-central1"
+schema:
+  source: "./schema"
+  datasource:
+    postgresql:
+      database: "fdcdb"
+      cloudSql:
+        instanceId: "odmsproject-fdc"
+      # schemaValidation: "COMPATIBLE"
+connectorDirs: ["./connector"]
