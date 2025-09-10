@@ -8,10 +8,11 @@
 <body>
   <p>Page not found. Redirecting to <a href="/odms_project/">home</a>...</p>
   <script>
-    // Redirect any unknown route to React app
-    const path = window.location.pathname;
-    if (!path.startsWith('/odms_project/')) {
-      window.location.href = '/odms_project/';
+    // Redirect unknown paths to your React app's index.html
+    const redirectPath = '/odms_project/';
+    const currentPath = window.location.pathname + window.location.search;
+    if (currentPath !== redirectPath) {
+      window.location.href = redirectPath;
     }
   </script>
 </body>
