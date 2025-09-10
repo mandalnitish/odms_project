@@ -1,19 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta http-equiv="refresh" content="0; URL=/odms_project/" />
-  <title>Redirecting...</title>
-</head>
-<body>
-  <p>Page not found. Redirecting to <a href="/odms_project/">home</a>...</p>
-  <script>
-    // Redirect unknown paths to your React app's index.html
-    const redirectPath = '/odms_project/';
-    const currentPath = window.location.pathname + window.location.search;
-    if (currentPath !== redirectPath) {
-      window.location.href = redirectPath;
-    }
-  </script>
-</body>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="refresh" content="0; URL=./index.html" />
+    <title>Redirecting...</title>
+  </head>
+  <body>
+    <p>Redirecting to the app...</p>
+    <a href="./index.html">Click here if not redirected</a>
+  </body>
 </html>
