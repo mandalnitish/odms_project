@@ -1,18 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta http-equiv="refresh" content="0; URL=/odms_project/" />
-    <title>Redirecting...</title>
-  </head>
-  <body>
-    <p>Page not found. Redirecting to <a href="/odms_project/">home</a>...</p>
-    <script>
-      // Redirect any route to index.html for React Router
-      const path = window.location.pathname;
-      if (path !== '/odms_project/' && path !== '/odms_project/index.html') {
-        window.location.href = '/odms_project/';
-      }
-    </script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="refresh" content="0; URL=/odms_project/" />
+  <title>Redirecting...</title>
+</head>
+<body>
+  <p>Page not found. Redirecting to <a href="/odms_project/">home</a>...</p>
+  <script>
+    // Redirect any unknown route to React app
+    const path = window.location.pathname;
+    if (!path.startsWith('/odms_project/')) {
+      window.location.href = '/odms_project/';
+    }
+  </script>
+</body>
 </html>
