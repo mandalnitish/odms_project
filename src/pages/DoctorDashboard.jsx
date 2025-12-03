@@ -40,10 +40,11 @@ function Highlight({ text = "", highlight = "" }) {
   );
 }
 
-function TrackingModal({ match, onClose, onSave }) {
+function TrackingModal({ match, onClose, onSave, hospitals }) {
   const [trackingData, setTrackingData] = useState({
     trackingStatus: match.trackingStatus || "",
     scheduledDate: match.scheduledDate || "",
+    hospitalId: match.hospitalId || "",
     hospital: match.hospital || "",
     hospitalAddress: match.hospitalAddress || "",
     surgeon: match.surgeon || "",
@@ -77,10 +78,24 @@ function TrackingModal({ match, onClose, onSave }) {
     }
   };
 
+  const handleHospitalChange = (hospitalId) => {
+    const hospital = hospitals.find(h => h.id === hospitalId);
+    if (hospital) {
+      setTrackingData({
+        ...trackingData,
+        hospitalId: hospital.id,
+        hospital: hospital.name,
+        hospitalAddress: `${hospital.address}, ${hospital.city}, ${hospital.state} - ${hospital.pincode}`
+      });
+    }
+  };
+
   const handleSave = () => {
     onSave(trackingData);
     onClose();
   };
+
+  const selectedHospital = hospitals.find(h => h.id === trackingData.hospitalId);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0, 0, 0, 0.5)", backdropFilter: "blur(8px)" }}>
@@ -187,26 +202,52 @@ function TrackingModal({ match, onClose, onSave }) {
               <div>
                 <label className="block text-sm font-semibold mb-2 flex items-center gap-2">
                   <span>📍</span>
-                  <span>Hospital Name</span>
+                  <span>Select Hospital</span>
                 </label>
-                <input
-                  type="text"
-                  value={trackingData.hospital}
-                  onChange={(e) => setTrackingData({ ...trackingData, hospital: e.target.value })}
-                  placeholder="Metropolitan Medical Center"
+                <select
+                  value={trackingData.hospitalId}
+                  onChange={(e) => handleHospitalChange(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all"
-                />
-              </div>
+                >
+                  <option value="">Select Hospital</option>
+                  {hospitals.filter(h => h.status === "Active").map(h => (
+                    <option key={h.id} value={h.id}>{h.name} - {h.city}</option>
+                  ))}
+                </select>
 
-              <div>
-                <label className="block text-sm font-semibold mb-2">Hospital Address</label>
-                <textarea
-                  value={trackingData.hospitalAddress}
-                  onChange={(e) => setTrackingData({ ...trackingData, hospitalAddress: e.target.value })}
-                  placeholder="123 Medical Center Drive, City, State, ZIP"
-                  rows="3"
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all resize-none"
-                />
+                {/* Hospital Details Display */}
+                {selectedHospital && (
+                  <div className="mt-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl space-y-2">
+                    <div>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">Address</p>
+                      <p className="text-sm font-medium">{trackingData.hospitalAddress}</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">Phone</p>
+                        <p className="text-sm font-medium">{selectedHospital.phone}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">Emergency</p>
+                        <p className="text-sm font-medium text-red-600 dark:text-red-400">
+                          {selectedHospital.emergencyContact}
+                        </p>
+                      </div>
+                    </div>
+                    {selectedHospital.facilities && selectedHospital.facilities.length > 0 && (
+                      <div>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Available Facilities</p>
+                        <div className="flex flex-wrap gap-1">
+                          {selectedHospital.facilities.slice(0, 4).map((facility, idx) => (
+                            <span key={idx} className="text-xs px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 rounded">
+                              {facility}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div>
@@ -215,7 +256,7 @@ function TrackingModal({ match, onClose, onSave }) {
                   value={trackingData.notes}
                   onChange={(e) => setTrackingData({ ...trackingData, notes: e.target.value })}
                   placeholder="Additional notes or special considerations..."
-                  rows="4"
+                  rows="8"
                   className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all resize-none"
                 />
               </div>
@@ -303,11 +344,13 @@ export default function DoctorDashboard() {
   const [donors, setDonors] = useState([]);
   const [recipients, setRecipients] = useState([]);
   const [matches, setMatches] = useState([]);
+  const [hospitals, setHospitals] = useState([]);
   const [loading, setLoading] = useState(false);
   const [updatedMatches, setUpdatedMatches] = useState({});
   const [filterBlood, setFilterBlood] = useState("");
   const [filterOrgan, setFilterOrgan] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterHospital, setFilterHospital] = useState("");
   const [searchName, setSearchName] = useState("");
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
@@ -318,8 +361,6 @@ export default function DoctorDashboard() {
   );
 
   const [doctor, setDoctor] = useState(null);
-  const [editMode, setEditMode] = useState(false);
-  const [profileLoading, setProfileLoading] = useState(false);
 
   // Dark mode effect
   useEffect(() => {
@@ -328,9 +369,9 @@ export default function DoctorDashboard() {
     localStorage.setItem("darkMode", darkMode);
   }, [darkMode]);
 
-  // Fetch users
+  // Fetch users and hospitals
   useEffect(() => {
-    async function fetchUsers() {
+    async function fetchData() {
       try {
         const usersCol = collection(db, "users");
         const snap = await getDocs(usersCol);
@@ -341,11 +382,16 @@ export default function DoctorDashboard() {
           (u) => u.role === "doctor" && u.id === auth.currentUser?.uid
         );
         setDoctor(currentDoctor || null);
+
+        // Fetch hospitals
+        const hospitalsCol = collection(db, "hospitals");
+        const hospitalsSnap = await getDocs(hospitalsCol);
+        setHospitals(hospitalsSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
       } catch (err) {
-        console.error("Failed to load users:", err);
+        console.error("Failed to load data:", err);
       }
     }
-    fetchUsers();
+    fetchData();
   }, []);
 
   // Real-time matches listener
@@ -461,6 +507,7 @@ export default function DoctorDashboard() {
     (d) =>
       (!filterBlood || d.bloodGroup?.toLowerCase() === filterBlood.toLowerCase()) &&
       (!filterOrgan || d.organType?.toLowerCase() === filterOrgan.toLowerCase()) &&
+      (!filterHospital || d.hospitalId === filterHospital) &&
       (!searchName || d.fullName?.toLowerCase().includes(searchName.toLowerCase()))
   );
 
@@ -468,6 +515,7 @@ export default function DoctorDashboard() {
     (r) =>
       (!filterBlood || r.bloodGroup?.toLowerCase() === filterBlood.toLowerCase()) &&
       (!filterOrgan || r.organType?.toLowerCase() === filterOrgan.toLowerCase()) &&
+      (!filterHospital || r.hospitalId === filterHospital) &&
       (!searchName || r.fullName?.toLowerCase().includes(searchName.toLowerCase()))
   );
 
@@ -476,6 +524,7 @@ export default function DoctorDashboard() {
       (!filterBlood || m.bloodGroup?.toLowerCase() === filterBlood.toLowerCase()) &&
       (!filterOrgan || m.organType?.toLowerCase() === filterOrgan.toLowerCase()) &&
       (!filterStatus || m.status === filterStatus) &&
+      (!filterHospital || m.hospitalId === filterHospital) &&
       (!searchName ||
         m.donorName?.toLowerCase().includes(searchName.toLowerCase()) ||
         m.recipientName?.toLowerCase().includes(searchName.toLowerCase()))
@@ -487,6 +536,7 @@ export default function DoctorDashboard() {
       {selectedMatch && (
         <TrackingModal
           match={selectedMatch}
+          hospitals={hospitals}
           onClose={() => setSelectedMatch(null)}
           onSave={(trackingData) => saveTrackingInfo(selectedMatch.id, trackingData)}
         />
@@ -498,7 +548,7 @@ export default function DoctorDashboard() {
           <div className="flex justify-between items-center flex-wrap gap-4">
             <div>
               <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                Transplant Dashboard
+                Doctor Dashboard
               </h1>
               <p className="text-gray-600 dark:text-gray-400 mt-1">Real-time organ transplant management system</p>
             </div>
@@ -513,23 +563,18 @@ export default function DoctorDashboard() {
                   <span>{loading ? "Matching..." : "AI Match"}</span>
                 </span>
               </button>
-              <button
-                onClick={() => setDarkMode(!darkMode)}
-                className="px-4 py-3 bg-white/70 dark:bg-gray-700/70 backdrop-blur-xl rounded-xl hover:shadow-lg transition-all border border-white/20"
-              >
-                <span className="text-xl">{darkMode ? "☀️" : "🌙"}</span>
-              </button>
             </div>
           </div>
         </header>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
           {[
             { label: "Total Donors", value: donors.length, icon: "👥", gradient: "from-blue-500 to-blue-600" },
             { label: "Recipients", value: recipients.length, icon: "🏥", gradient: "from-purple-500 to-purple-600" },
             { label: "Active Matches", value: uniqueMatches.length, icon: "🔗", gradient: "from-green-500 to-green-600" },
-            { label: "Completed", value: uniqueMatches.filter(m => m.trackingStatus === "Completed").length, icon: "✅", gradient: "from-emerald-500 to-emerald-600" }
+            { label: "Completed", value: uniqueMatches.filter(m => m.trackingStatus === "Completed").length, icon: "✅", gradient: "from-emerald-500 to-emerald-600" },
+            { label: "Hospitals", value: hospitals.filter(h => h.status === "Active").length, icon: "🏢", gradient: "from-orange-500 to-red-600" }
           ].map((stat, index) => (
             <div
               key={stat.label}
@@ -553,7 +598,7 @@ export default function DoctorDashboard() {
 
         {/* Filters */}
         <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 mb-6 shadow-lg border border-white/20">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
             <input
               type="text"
               placeholder="🔍 Search by name..."
@@ -591,12 +636,23 @@ export default function DoctorDashboard() {
               <option value="Approved">Approved</option>
               <option value="Rejected">Rejected</option>
             </select>
+            <select
+              value={filterHospital}
+              onChange={(e) => setFilterHospital(e.target.value)}
+              className="px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 outline-none transition-all"
+            >
+              <option value="">All Hospitals</option>
+              {hospitals.map(h => (
+                <option key={h.id} value={h.id}>{h.name}</option>
+              ))}
+            </select>
             <button
               onClick={() => {
                 setSearchName("");
                 setFilterBlood("");
                 setFilterOrgan("");
                 setFilterStatus("");
+                setFilterHospital("");
               }}
               className="px-4 py-3 bg-gray-200 dark:bg-gray-700 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all font-medium"
             >
@@ -687,10 +743,46 @@ export default function DoctorDashboard() {
                         <span>📱</span>
                         <span className="text-gray-600 dark:text-gray-400">{doctor.mobile || "Not provided"}</span>
                       </p>
+                      {doctor.hospitalId && (
+                        <p className="flex items-center gap-2 text-sm">
+                          <span>🏥</span>
+                          <span className="text-gray-600 dark:text-gray-400">
+                            {hospitals.find(h => h.id === doctor.hospitalId)?.name || "—"}
+                          </span>
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
               )}
+
+              {/* Hospital Distribution */}
+              <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-white/20 lg:col-span-2">
+                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                  <span>🏥</span>
+                  <span>Hospital Distribution</span>
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {hospitals.slice(0, 6).map((hospital) => {
+                    const matchCount = uniqueMatches.filter(m => m.hospitalId === hospital.id).length;
+                    return (
+                      <div key={hospital.id} className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+                        <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center text-white text-xl">
+                          🏥
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium">{hospital.name}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{hospital.city}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-lg font-bold text-orange-600 dark:text-orange-400">{matchCount}</p>
+                          <p className="text-xs text-gray-500">matches</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
 
               {/* Recent Activity */}
               <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-white/20 lg:col-span-2">
@@ -706,7 +798,10 @@ export default function DoctorDashboard() {
                       </div>
                       <div className="flex-1">
                         <p className="font-medium">{match.donorName} → {match.recipientName}</p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{match.organType} transplant - {match.bloodGroup}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                          {match.organType} transplant - {match.bloodGroup}
+                          {match.hospital && ` - ${match.hospital}`}
+                        </p>
                       </div>
                       <StatusBadge status={match.status} />
                     </div>
@@ -734,12 +829,13 @@ export default function DoctorDashboard() {
                       <th className="text-left py-4 px-4 font-semibold">Blood Group</th>
                       <th className="text-left py-4 px-4 font-semibold">Organ</th>
                       <th className="text-left py-4 px-4 font-semibold">Age</th>
+                      <th className="text-left py-4 px-4 font-semibold">Hospital</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredDonors.length === 0 ? (
                       <tr>
-                        <td colSpan="4" className="text-center py-8 text-gray-500">No donors found</td>
+                        <td colSpan="5" className="text-center py-8 text-gray-500">No donors found</td>
                       </tr>
                     ) : (
                       filteredDonors.map(donor => (
@@ -754,6 +850,18 @@ export default function DoctorDashboard() {
                           </td>
                           <td className="py-4 px-4">{donor.organType}</td>
                           <td className="py-4 px-4">{donor.age || "—"}</td>
+                          <td className="py-4 px-4">
+                            <div>
+                              <p className="text-sm font-medium">
+                                {hospitals.find(h => h.id === donor.hospitalId)?.name || "—"}
+                              </p>
+                              {donor.hospitalId && (
+                                <p className="text-xs text-gray-500">
+                                  {hospitals.find(h => h.id === donor.hospitalId)?.city}
+                                </p>
+                              )}
+                            </div>
+                          </td>
                         </tr>
                       ))
                     )}
@@ -778,12 +886,13 @@ export default function DoctorDashboard() {
                       <th className="text-left py-4 px-4 font-semibold">Blood Group</th>
                       <th className="text-left py-4 px-4 font-semibold">Organ Needed</th>
                       <th className="text-left py-4 px-4 font-semibold">Age</th>
+                      <th className="text-left py-4 px-4 font-semibold">Hospital</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredRecipients.length === 0 ? (
                       <tr>
-                        <td colSpan="4" className="text-center py-8 text-gray-500">No recipients found</td>
+                        <td colSpan="5" className="text-center py-8 text-gray-500">No recipients found</td>
                       </tr>
                     ) : (
                       filteredRecipients.map(recipient => (
@@ -798,6 +907,18 @@ export default function DoctorDashboard() {
                           </td>
                           <td className="py-4 px-4">{recipient.organType}</td>
                           <td className="py-4 px-4">{recipient.age || "—"}</td>
+                          <td className="py-4 px-4">
+                            <div>
+                              <p className="text-sm font-medium">
+                                {hospitals.find(h => h.id === recipient.hospitalId)?.name || "—"}
+                              </p>
+                              {recipient.hospitalId && (
+                                <p className="text-xs text-gray-500">
+                                  {hospitals.find(h => h.id === recipient.hospitalId)?.city}
+                                </p>
+                              )}
+                            </div>
+                          </td>
                         </tr>
                       ))
                     )}
@@ -825,13 +946,14 @@ export default function DoctorDashboard() {
                       <th className="text-left py-4 px-4 font-semibold">Score</th>
                       <th className="text-left py-4 px-4 font-semibold">Status</th>
                       <th className="text-left py-4 px-4 font-semibold">Tracking</th>
+                      <th className="text-left py-4 px-4 font-semibold">Hospital</th>
                       <th className="text-left py-4 px-4 font-semibold">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredMatches.length === 0 ? (
                       <tr>
-                        <td colSpan="8" className="text-center py-8 text-gray-500">
+                        <td colSpan="9" className="text-center py-8 text-gray-500">
                           {uniqueMatches.length === 0 ? 'No matches yet. Click "AI Match" to generate matches.' : 'No matches found with current filters.'}
                         </td>
                       </tr>
@@ -871,6 +993,18 @@ export default function DoctorDashboard() {
                           </td>
                           <td className="py-4 px-4">
                             <StatusBadge status={match.trackingStatus} />
+                          </td>
+                          <td className="py-4 px-4">
+                            <div>
+                              <p className="text-sm font-medium">
+                                {match.hospital || "Not Assigned"}
+                              </p>
+                              {match.hospitalId && (
+                                <p className="text-xs text-gray-500">
+                                  {hospitals.find(h => h.id === match.hospitalId)?.city}
+                                </p>
+                              )}
+                            </div>
                           </td>
                           <td className="py-4 px-4">
                             <div className="flex gap-2 flex-wrap">
