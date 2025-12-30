@@ -1,10 +1,29 @@
+// src/pages/HospitalDashboard.jsx
 import React, { useState, useEffect } from "react";
-import { Building2, MapPin, Phone, Mail, Users, Activity, Plus, Edit2, Trash2, Save, X, Search, Filter, Download, FileText } from "lucide-react";
-
-// Mock Firebase - Replace with actual Firebase imports
-const db = {
-  collection: () => ({}),
-};
+import {
+  Building2,
+  MapPin,
+  Phone,
+  Mail,
+  Users,
+  Activity,
+  Plus,
+  Edit2,
+  Trash2,
+  X,
+  Search,
+  Filter,
+  Download,
+} from "lucide-react";
+import { db } from "../firebase";
+import {
+  collection,
+  onSnapshot,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+} from "firebase/firestore";
 
 function Spinner() {
   return (
@@ -16,7 +35,9 @@ function Spinner() {
 
 function StatCard({ icon: Icon, label, value, bgColor }) {
   return (
-    <div className={`${bgColor} rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1`}>
+    <div
+      className={`${bgColor} rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1`}
+    >
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-white/80 mb-1">{label}</p>
@@ -87,21 +108,21 @@ function HospitalModal({ hospital, onClose, onSave }) {
   ];
 
   const handleDepartmentToggle = (dept) => {
-    setFormData({
-      ...formData,
-      departments: formData.departments.includes(dept)
-        ? formData.departments.filter((d) => d !== dept)
-        : [...formData.departments, dept],
-    });
+    setFormData((prev) => ({
+      ...prev,
+      departments: prev.departments.includes(dept)
+        ? prev.departments.filter((d) => d !== dept)
+        : [...prev.departments, dept],
+    }));
   };
 
   const handleFacilityToggle = (facility) => {
-    setFormData({
-      ...formData,
-      facilities: formData.facilities.includes(facility)
-        ? formData.facilities.filter((f) => f !== facility)
-        : [...formData.facilities, facility],
-    });
+    setFormData((prev) => ({
+      ...prev,
+      facilities: prev.facilities.includes(facility)
+        ? prev.facilities.filter((f) => f !== facility)
+        : [...prev.facilities, facility],
+    }));
   };
 
   const handleSubmit = (e) => {
@@ -141,62 +162,84 @@ function HospitalModal({ hospital, onClose, onSave }) {
                   type="text"
                   required
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, name: e.target.value }))
+                  }
                   className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-blue-500 outline-none transition-all"
                   placeholder="Metropolitan Medical Center"
                 />
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium mb-2">Address *</label>
+                <label className="block text-sm font-medium mb-2">
+                  Address *
+                </label>
                 <input
                   type="text"
                   required
                   value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, address: e.target.value }))
+                  }
                   className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-blue-500 outline-none transition-all"
                   placeholder="123 Medical Center Drive"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">City *</label>
+                <label className="block text-sm font-medium mb-2">
+                  City *
+                </label>
                 <input
                   type="text"
                   required
                   value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, city: e.target.value }))
+                  }
                   className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-blue-500 outline-none transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">State *</label>
+                <label className="block text-sm font-medium mb-2">
+                  State *
+                </label>
                 <input
                   type="text"
                   required
                   value={formData.state}
-                  onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, state: e.target.value }))
+                  }
                   className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-blue-500 outline-none transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Pincode *</label>
+                <label className="block text-sm font-medium mb-2">
+                  Pincode *
+                </label>
                 <input
                   type="text"
                   required
                   value={formData.pincode}
-                  onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, pincode: e.target.value }))
+                  }
                   className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-blue-500 outline-none transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Hospital Type</label>
+                <label className="block text-sm font-medium mb-2">
+                  Hospital Type
+                </label>
                 <select
                   value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, type: e.target.value }))
+                  }
                   className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-blue-500 outline-none transition-all"
                 >
                   {hospitalTypes.map((type) => (
@@ -214,12 +257,16 @@ function HospitalModal({ hospital, onClose, onSave }) {
             <h3 className="text-lg font-semibold">Contact Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Phone *</label>
+                <label className="block text-sm font-medium mb-2">
+                  Phone *
+                </label>
                 <input
                   type="tel"
                   required
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, phone: e.target.value }))
+                  }
                   className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-blue-500 outline-none transition-all"
                 />
               </div>
@@ -233,28 +280,39 @@ function HospitalModal({ hospital, onClose, onSave }) {
                   required
                   value={formData.emergencyContact}
                   onChange={(e) =>
-                    setFormData({ ...formData, emergencyContact: e.target.value })
+                    setFormData((p) => ({
+                      ...p,
+                      emergencyContact: e.target.value,
+                    }))
                   }
                   className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-blue-500 outline-none transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Email</label>
+                <label className="block text-sm font-medium mb-2">
+                  Email
+                </label>
                 <input
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, email: e.target.value }))
+                  }
                   className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-blue-500 outline-none transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Website</label>
+                <label className="block text-sm font-medium mb-2">
+                  Website
+                </label>
                 <input
                   type="url"
                   value={formData.website}
-                  onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, website: e.target.value }))
+                  }
                   className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-blue-500 outline-none transition-all"
                 />
               </div>
@@ -266,22 +324,31 @@ function HospitalModal({ hospital, onClose, onSave }) {
             <h3 className="text-lg font-semibold">Additional Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Total Beds</label>
+                <label className="block text-sm font-medium mb-2">
+                  Total Beds
+                </label>
                 <input
                   type="number"
                   value={formData.beds}
-                  onChange={(e) => setFormData({ ...formData, beds: e.target.value })}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, beds: e.target.value }))
+                  }
                   className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-blue-500 outline-none transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Established</label>
+                <label className="block text-sm font-medium mb-2">
+                  Established
+                </label>
                 <input
                   type="text"
                   value={formData.established}
                   onChange={(e) =>
-                    setFormData({ ...formData, established: e.target.value })
+                    setFormData((p) => ({
+                      ...p,
+                      established: e.target.value,
+                    }))
                   }
                   className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-blue-500 outline-none transition-all"
                   placeholder="1995"
@@ -289,12 +356,17 @@ function HospitalModal({ hospital, onClose, onSave }) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Accreditation</label>
+                <label className="block text-sm font-medium mb-2">
+                  Accreditation
+                </label>
                 <input
                   type="text"
                   value={formData.accreditation}
                   onChange={(e) =>
-                    setFormData({ ...formData, accreditation: e.target.value })
+                    setFormData((p) => ({
+                      ...p,
+                      accreditation: e.target.value,
+                    }))
                   }
                   className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-blue-500 outline-none transition-all"
                   placeholder="NABH, JCI"
@@ -350,7 +422,9 @@ function HospitalModal({ hospital, onClose, onSave }) {
             <label className="block text-sm font-medium mb-2">Status</label>
             <select
               value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+              onChange={(e) =>
+                setFormData((p) => ({ ...p, status: e.target.value }))
+              }
               className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-blue-500 outline-none transition-all"
             >
               <option value="Active">Active</option>
@@ -380,49 +454,10 @@ function HospitalModal({ hospital, onClose, onSave }) {
   );
 }
 
+// ---------------- MAIN DASHBOARD ----------------
 export default function HospitalDashboard() {
-  const [hospitals, setHospitals] = useState([
-    {
-      id: "1",
-      name: "Metropolitan Medical Center",
-      address: "123 Medical Center Drive",
-      city: "Mumbai",
-      state: "Maharashtra",
-      pincode: "400001",
-      phone: "+91-22-12345678",
-      emergencyContact: "+91-22-87654321",
-      email: "info@mmc.com",
-      website: "www.mmc.com",
-      type: "Multi-Specialty",
-      beds: "500",
-      departments: ["Cardiology", "Neurology", "Orthopedics", "Transplant Unit", "Emergency", "ICU"],
-      facilities: ["24/7 Emergency", "ICU", "Blood Bank", "Pharmacy", "Laboratory", "Operation Theater"],
-      established: "1995",
-      accreditation: "NABH, JCI",
-      status: "Active",
-    },
-    {
-      id: "2",
-      name: "City General Hospital",
-      address: "456 Healthcare Avenue",
-      city: "Delhi",
-      state: "Delhi",
-      pincode: "110001",
-      phone: "+91-11-98765432",
-      emergencyContact: "+91-11-23456789",
-      email: "contact@citygeneral.com",
-      website: "www.citygeneral.com",
-      type: "General Hospital",
-      beds: "300",
-      departments: ["Emergency", "ICU", "Pediatrics", "Gynecology", "Radiology"],
-      facilities: ["24/7 Emergency", "NICU", "Blood Bank", "Ambulance Service"],
-      established: "2005",
-      accreditation: "NABH",
-      status: "Active",
-    },
-  ]);
-
-  const [loading, setLoading] = useState(false);
+  const [hospitals, setHospitals] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [selectedHospital, setSelectedHospital] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -430,43 +465,120 @@ export default function HospitalDashboard() {
   const [filterType, setFilterType] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
 
-  const cities = [...new Set(hospitals.map((h) => h.city))];
-  const types = [...new Set(hospitals.map((h) => h.type))];
+  // 🔗 Map Firestore -> UI hospital shape
+  const mapDocToHospital = (docSnap) => {
+    const h = docSnap.data() || {};
+    return {
+      id: docSnap.id,
+      name: h.name || "",
+      address:
+        h.address ||
+        h.addressLine1 ||
+        "",
+      city: h.city || "",
+      state: h.state || "",
+      pincode: h.pincode || "",
+      phone: h.phone || h.contactNumber || "",
+      emergencyContact: h.emergencyContact || h.emergencyNumber || "",
+      email: h.email || "",
+      website: h.website || "",
+      type: h.type || "Multi-Specialty",
+      beds:
+        h.beds?.toString() ||
+        (h.totalBeds != null ? String(h.totalBeds) : ""),
+      departments: h.departments || [],
+      facilities: h.facilities || h.availableOrgans || [],
+      established: h.established || "",
+      accreditation: h.accreditation || "",
+      status: h.status || "Active",
+    };
+  };
 
-  const filteredHospitals = hospitals.filter((h) => {
-    const matchesSearch =
-      h.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      h.city.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCity = !filterCity || h.city === filterCity;
-    const matchesType = !filterType || h.type === filterType;
-    const matchesStatus = !filterStatus || h.status === filterStatus;
+  // 🔁 Real-time listener from Firestore
+  useEffect(() => {
+    const colRef = collection(db, "hospitals");
+    const unsub = onSnapshot(
+      colRef,
+      (snap) => {
+        const list = snap.docs.map(mapDocToHospital);
+        setHospitals(list);
+        setLoading(false);
+      },
+      (err) => {
+        console.error("Error loading hospitals:", err);
+        setLoading(false);
+      }
+    );
 
-    return matchesSearch && matchesCity && matchesType && matchesStatus;
+    return () => unsub();
+  }, []);
+
+  // 🔄 UI -> Firestore data shape
+  const mapHospitalToFirestore = (h) => ({
+    name: h.name,
+    type: h.type,
+    city: h.city,
+    state: h.state,
+    pincode: h.pincode,
+    // compatible with HospitalsPage.jsx
+    addressLine1: h.address,
+    contactNumber: h.phone,
+    emergencyNumber: h.emergencyContact,
+    email: h.email || "",
+    website: h.website || "",
+    totalBeds: h.beds ? parseInt(h.beds, 10) || null : null,
+    departments: h.departments || [],
+    facilities: h.facilities || [],
+    established: h.established || "",
+    accreditation: h.accreditation || "",
+    status: h.status || "Active",
   });
 
-  const handleSaveHospital = (hospitalData) => {
-    if (selectedHospital) {
-      setHospitals(
-        hospitals.map((h) =>
-          h.id === selectedHospital.id ? { ...hospitalData, id: h.id } : h
-        )
-      );
-    } else {
-      setHospitals([
-        ...hospitals,
-        { ...hospitalData, id: Date.now().toString() },
-      ]);
+  const handleSaveHospital = async (hospitalData) => {
+    try {
+      setLoading(true);
+      const data = mapHospitalToFirestore(hospitalData);
+
+      if (selectedHospital) {
+        const ref = doc(db, "hospitals", selectedHospital.id);
+        await updateDoc(ref, data);
+      } else {
+        await addDoc(collection(db, "hospitals"), data);
+      }
+    } catch (err) {
+      console.error("Failed to save hospital:", err);
+      alert("Error saving hospital: " + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleDeleteHospital = (id) => {
-    if (window.confirm("Are you sure you want to delete this hospital?")) {
-      setHospitals(hospitals.filter((h) => h.id !== id));
+  const handleDeleteHospital = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this hospital?")) {
+      return;
+    }
+    try {
+      setLoading(true);
+      await deleteDoc(doc(db, "hospitals", id));
+    } catch (err) {
+      console.error("Failed to delete hospital:", err);
+      alert("Error deleting hospital: " + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   const exportToCSV = () => {
-    const headers = ["Name", "City", "State", "Type", "Phone", "Emergency", "Beds", "Status"];
+    const headers = [
+      "Name",
+      "City",
+      "State",
+      "Type",
+      "Phone",
+      "Emergency",
+      "Beds",
+      "Status",
+    ];
     const rows = filteredHospitals.map((h) => [
       h.name,
       h.city,
@@ -492,6 +604,20 @@ export default function HospitalDashboard() {
     URL.revokeObjectURL(url);
   };
 
+  const filteredHospitals = hospitals.filter((h) => {
+    const matchesSearch =
+      h.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      h.city.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCity = !filterCity || h.city === filterCity;
+    const matchesType = !filterType || h.type === filterType;
+    const matchesStatus = !filterStatus || h.status === filterStatus;
+
+    return matchesSearch && matchesCity && matchesType && matchesStatus;
+  });
+
+  const cities = [...new Set(hospitals.map((h) => h.city).filter(Boolean))];
+  const types = [...new Set(hospitals.map((h) => h.type).filter(Boolean))];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 dark:text-white">
       {showModal && (
@@ -507,13 +633,16 @@ export default function HospitalDashboard() {
 
       <div className="max-w-7xl mx-auto p-6">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-            Hospital Management
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Manage hospital information and facilities
-          </p>
+        <div className="mb-8 flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+              Hospital Management
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              Manage hospital information and facilities
+            </p>
+          </div>
+          {loading && <Spinner />}
         </div>
 
         {/* Stats Cards */}
@@ -533,7 +662,10 @@ export default function HospitalDashboard() {
           <StatCard
             icon={Users}
             label="Total Beds"
-            value={hospitals.reduce((sum, h) => sum + (parseInt(h.beds) || 0), 0)}
+            value={hospitals.reduce(
+              (sum, h) => sum + (parseInt(h.beds, 10) || 0),
+              0
+            )}
             bgColor="bg-gradient-to-br from-purple-500 to-indigo-600"
           />
           <StatCard
@@ -639,7 +771,9 @@ export default function HospitalDashboard() {
             >
               <div className="flex justify-between items-start mb-4">
                 <div className="flex-1">
-                  <h3 className="text-xl font-bold mb-2">{hospital.name}</h3>
+                  <h3 className="text-xl font-bold mb-2">
+                    {hospital.name}
+                  </h3>
                   <span
                     className={`px-3 py-1 rounded-full text-xs font-semibold ${
                       hospital.status === "Active"
@@ -695,17 +829,23 @@ export default function HospitalDashboard() {
                 <div className="flex items-center gap-4 pt-3 border-t border-gray-200 dark:border-gray-700">
                   <div className="text-sm">
                     <span className="text-gray-500">Type:</span>
-                    <span className="ml-2 font-semibold">{hospital.type}</span>
+                    <span className="ml-2 font-semibold">
+                      {hospital.type}
+                    </span>
                   </div>
                   <div className="text-sm">
                     <span className="text-gray-500">Beds:</span>
-                    <span className="ml-2 font-semibold">{hospital.beds}</span>
+                    <span className="ml-2 font-semibold">
+                      {hospital.beds || "—"}
+                    </span>
                   </div>
                 </div>
 
-                {hospital.departments.length > 0 && (
+                {hospital.departments?.length > 0 && (
                   <div className="pt-3">
-                    <p className="text-sm font-semibold mb-2">Departments:</p>
+                    <p className="text-sm font-semibold mb-2">
+                      Departments:
+                    </p>
                     <div className="flex flex-wrap gap-2">
                       {hospital.departments.slice(0, 4).map((dept) => (
                         <span
@@ -724,9 +864,11 @@ export default function HospitalDashboard() {
                   </div>
                 )}
 
-                {hospital.facilities.length > 0 && (
+                {hospital.facilities?.length > 0 && (
                   <div className="pt-3">
-                    <p className="text-sm font-semibold mb-2">Facilities:</p>
+                    <p className="text-sm font-semibold mb-2">
+                      Facilities:
+                    </p>
                     <div className="flex flex-wrap gap-2">
                       {hospital.facilities.slice(0, 3).map((facility) => (
                         <span
@@ -748,7 +890,7 @@ export default function HospitalDashboard() {
             </div>
           ))}
 
-          {filteredHospitals.length === 0 && (
+          {filteredHospitals.length === 0 && !loading && (
             <div className="col-span-2 text-center py-12 text-gray-500">
               No hospitals found
             </div>

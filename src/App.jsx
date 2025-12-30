@@ -1,28 +1,47 @@
-// src/App.jsx
+// ----------------------------------------------
+// src/App.jsx  (FIXED VERSION - EMBEDDED CHATBOT)
+// ----------------------------------------------
 import { useState, useEffect, useContext } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  Link,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
+
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { DarkModeContext } from "./context/DarkModeContext";
 import PrivateRoute from "./components/PrivateRoute";
+
 import Footer from "./components/Footer";
 import { AnimatePresence, motion } from "framer-motion";
 import AOS from "aos";
 import "aos/dist/aos.css";
 
-// Pages
+// ----------- Pages -----------
 import HomePage from "./pages/HomePage";
 import AuthPage from "./pages/AuthPage";
 import WhyDonate from "./pages/WhyDonate";
 import HowItWorks from "./pages/HowItWorks";
 import Eligibility from "./pages/Eligibility";
+
 import AdminDashboard from "./pages/AdminDashboard";
 import DonorDashboard from "./pages/DonorDashboard";
 import RecipientDashboard from "./pages/RecipientDashboard";
 import DoctorDashboard from "./pages/DoctorDashboard";
 
-// Assets
+import HospitalsPage from "./pages/HospitalsPage";
+import HospitalDetailsPage from "./pages/HospitalDetailsPage";
+import ChatbotPage from "./pages/ChatbotPage";
+
 import logo from "./assets/logo.png";
 
+// --------------------------------------------
+// MAIN APP WRAPPER
+// --------------------------------------------
 export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const { darkMode, toggleDarkMode } = useContext(DarkModeContext);
@@ -34,105 +53,130 @@ export default function App() {
   return (
     <AuthProvider>
       <Router>
-        <AppContent menuOpen={menuOpen} setMenuOpen={setMenuOpen} toggleDarkMode={toggleDarkMode} darkMode={darkMode} />
+        <AppContent
+          menuOpen={menuOpen}
+          setMenuOpen={setMenuOpen}
+          darkMode={darkMode}
+          toggleDarkMode={toggleDarkMode}
+        />
       </Router>
     </AuthProvider>
   );
 }
 
-// ---------------- AppContent ----------------
+// --------------------------------------------
+// APP CONTENT (HEADER + ROUTES + CHATBOT)
+// --------------------------------------------
 function AppContent({ menuOpen, setMenuOpen, toggleDarkMode, darkMode }) {
   const { user, role } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // Redirect user automatically on login based on role
+  // FIXED: Redirect only when landing on "/" or "/auth"
   useEffect(() => {
-    if (user && role) {
-      switch (role) {
-        case "admin":
-          navigate("/admin");
-          break;
-        case "donor":
-          navigate("/donor");
-          break;
-        case "recipient":
-          navigate("/recipient");
-          break;
-        case "doctor":
-          navigate("/doctor");
-          break;
-        default:
-          navigate("/");
-      }
+    if (!user || !role) return;
+
+    if (location.pathname !== "/" && location.pathname !== "/auth") return;
+
+    switch (role) {
+      case "admin":
+        navigate("/admin", { replace: true });
+        break;
+      case "doctor":
+        navigate("/doctor", { replace: true });
+        break;
+      case "donor":
+        navigate("/donor", { replace: true });
+        break;
+      case "recipient":
+        navigate("/recipient", { replace: true });
+        break;
+      default:
+        navigate("/", { replace: true });
     }
-  }, [user, role, navigate]);
+  }, [user, role, location.pathname, navigate]);
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-700 ease-in-out">
-      <Header menuOpen={menuOpen} setMenuOpen={setMenuOpen} toggleDarkMode={toggleDarkMode} darkMode={darkMode} />
+    <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-all">
+      <Header
+        menuOpen={menuOpen}
+        setMenuOpen={setMenuOpen}
+        toggleDarkMode={toggleDarkMode}
+        darkMode={darkMode}
+      />
+
       <AnimatedRoutes />
+
       <Footer />
     </div>
   );
 }
 
-// ---------------- Header ----------------
+// --------------------------------------------
+// HEADER + NAVIGATION BAR
+// --------------------------------------------
 function Header({ menuOpen, setMenuOpen, toggleDarkMode, darkMode }) {
   const location = useLocation();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const hideLoginButton = location.pathname.startsWith("/auth") || !!user;
+  const hideLogin = location.pathname.startsWith("/auth") || !!user;
 
-  const mobileLinkVariants = {
+  const mobileVariants = {
     hidden: { x: -20, opacity: 0 },
-    visible: (i) => ({ x: 0, opacity: 1, transition: { delay: i * 0.05, duration: 0.2 } }),
+    visible: (i) => ({
+      x: 0,
+      opacity: 1,
+      transition: { delay: i * 0.05 },
+    }),
   };
 
   const handleLogout = async () => {
     await logout();
-    setMenuOpen(false); // close mobile menu
-    navigate("/"); // redirect to homepage
+    setMenuOpen(false);
+    navigate("/");
   };
 
   return (
-    <header className="bg-gray-100 dark:bg-gray-800 shadow transition-colors duration-700 ease-in-out">
+    <header className="bg-white dark:bg-gray-800 shadow">
       <div className="max-w-6xl mx-auto flex items-center justify-between p-4">
         <Link to="/">
           <img src={logo} alt="Logo" className="h-16" />
         </Link>
 
-        {/* Desktop Links */}
+        {/* Desktop Nav */}
         <nav className="hidden md:flex space-x-6">
           {[
             { name: "Home", path: "/" },
             { name: "Why Donate", path: "/why-donate" },
             { name: "How It Works", path: "/how-it-works" },
             { name: "Eligibility", path: "/eligibility" },
-          ].map((link) => (
+            { name: "AI Assistant", path: "/chatbot" },
+            { name: "Hospitals", path: "/hospitals" },
+          ].map((l) => (
             <Link
-              key={link.path}
-              to={link.path}
-              className="hover:text-green-600 dark:hover:text-green-400 font-medium transition-colors"
+              key={l.path}
+              to={l.path}
+              className="hover:text-green-600 dark:hover:text-green-400 font-medium"
             >
-              {link.name}
+              {l.name}
             </Link>
           ))}
         </nav>
 
-        {/* Dark Mode & Login/Logout */}
-        <div className="flex items-center space-x-4">
+        {/* Right Side Buttons */}
+        <div className="flex items-center gap-4">
           <button
             onClick={toggleDarkMode}
-            className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600"
+            className="p-2 rounded-full bg-gray-200 dark:bg-gray-700"
           >
             {darkMode ? "🌙" : "☀️"}
           </button>
 
-          {!hideLoginButton && (
+          {!hideLogin && (
             <Link
               to="/auth"
-              className="bg-green-600 dark:bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-700 dark:hover:bg-green-400 font-medium"
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
             >
               Login
             </Link>
@@ -148,18 +192,13 @@ function Header({ menuOpen, setMenuOpen, toggleDarkMode, darkMode }) {
           )}
         </div>
 
-        {/* Mobile Menu Toggle */}
+        {/* Mobile Toggle */}
         <div className="md:hidden">
-          <button onClick={() => setMenuOpen(!menuOpen)} className="text-gray-700 dark:text-gray-200 focus:outline-none">
-            {menuOpen ? (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            )}
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="text-gray-700 dark:text-gray-100"
+          >
+            {menuOpen ? "✖" : "☰"}
           </button>
         </div>
       </div>
@@ -168,7 +207,7 @@ function Header({ menuOpen, setMenuOpen, toggleDarkMode, darkMode }) {
       <AnimatePresence>
         {menuOpen && (
           <motion.div
-            className="md:hidden bg-gray-100 dark:bg-gray-800 px-4 pb-4 space-y-2 overflow-hidden"
+            className="md:hidden bg-white dark:bg-gray-800 p-4 space-y-2"
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -178,31 +217,44 @@ function Header({ menuOpen, setMenuOpen, toggleDarkMode, darkMode }) {
               { name: "Why Donate", path: "/why-donate" },
               { name: "How It Works", path: "/how-it-works" },
               { name: "Eligibility", path: "/eligibility" },
+              { name: "AI Assistant", path: "/chatbot" },
+              { name: "Hospitals", path: "/hospitals" },
             ].map((link, i) => (
-              <motion.div key={link.path} custom={i} initial="hidden" animate="visible" exit="hidden" variants={mobileLinkVariants}>
-                <Link to={link.path} onClick={() => setMenuOpen(false)} className="block hover:text-green-600 dark:hover:text-green-400">
+              <motion.div
+                key={link.path}
+                custom={i}
+                initial="hidden"
+                animate="visible"
+                exit="hidden"
+                variants={mobileVariants}
+              >
+                <Link
+                  to={link.path}
+                  onClick={() => setMenuOpen(false)}
+                  className="block font-medium hover:text-green-600"
+                >
                   {link.name}
                 </Link>
               </motion.div>
             ))}
 
-            {!hideLoginButton && (
-              <motion.div custom={4} initial="hidden" animate="visible" exit="hidden" variants={mobileLinkVariants}>
-                <Link to="/auth" onClick={() => setMenuOpen(false)} className="block bg-green-600 dark:bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-700 dark:hover:bg-green-400">
-                  Login
-                </Link>
-              </motion.div>
+            {!hideLogin && (
+              <Link
+                to="/auth"
+                onClick={() => setMenuOpen(false)}
+                className="block bg-green-600 text-white px-4 py-2 rounded-lg"
+              >
+                Login
+              </Link>
             )}
 
             {user && (
-              <motion.div custom={5} initial="hidden" animate="visible" exit="hidden" variants={mobileLinkVariants}>
-                <button
-                  onClick={handleLogout}
-                  className="w-full text-left px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-                >
-                  Logout
-                </button>
-              </motion.div>
+              <button
+                onClick={handleLogout}
+                className="w-full bg-red-600 text-white px-4 py-2 rounded-lg"
+              >
+                Logout
+              </button>
             )}
           </motion.div>
         )}
@@ -211,41 +263,109 @@ function Header({ menuOpen, setMenuOpen, toggleDarkMode, darkMode }) {
   );
 }
 
-// ---------------- Animated Routes ----------------
+// --------------------------------------------
+// ANIMATED ROUTES
+// --------------------------------------------
 function AnimatedRoutes() {
   const location = useLocation();
 
   return (
     <AnimatePresence mode="wait" initial={false}>
-      <Routes location={location} key={location.pathname}>
-        {/* Public Routes */}
-        <Route path="/" element={<PageWrapper><HomePage /></PageWrapper>} />
-        <Route path="/auth" element={<PageWrapper><AuthPage showLogo={false} /></PageWrapper>} />
-        <Route path="/why-donate" element={<PageWrapper><WhyDonate /></PageWrapper>} />
-        <Route path="/how-it-works" element={<PageWrapper><HowItWorks /></PageWrapper>} />
-        <Route path="/eligibility" element={<PageWrapper><Eligibility /></PageWrapper>} />
+      <Routes key={location.pathname} location={location}>
+        {/* Public */}
+        <Route
+          path="/"
+          element={<PageWrapper><HomePage /></PageWrapper>}
+        />
+        <Route
+          path="/auth"
+          element={<PageWrapper><AuthPage showLogo={false} /></PageWrapper>}
+        />
+        <Route
+          path="/why-donate"
+          element={<PageWrapper><WhyDonate /></PageWrapper>}
+        />
+        <Route
+          path="/how-it-works"
+          element={<PageWrapper><HowItWorks /></PageWrapper>}
+        />
+        <Route
+          path="/eligibility"
+          element={<PageWrapper><Eligibility /></PageWrapper>}
+        />
+        <Route
+          path="/chatbot"
+          element={<PageWrapper><ChatbotPage /></PageWrapper>}
+        />
 
         {/* Private Routes */}
-        <Route path="/admin" element={<PrivateRoute allowedRoles={["admin"]}><AdminDashboard /></PrivateRoute>} />
-        <Route path="/donor" element={<PrivateRoute allowedRoles={["donor"]}><DonorDashboard /></PrivateRoute>} />
-        <Route path="/recipient" element={<PrivateRoute allowedRoles={["recipient"]}><RecipientDashboard /></PrivateRoute>} />
-        <Route path="/doctor" element={<PrivateRoute allowedRoles={["doctor"]}><DoctorDashboard /></PrivateRoute>} />
+        <Route
+          path="/admin"
+          element={
+            <PrivateRoute allowedRoles={["admin"]}>
+              <AdminDashboard />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/doctor"
+          element={
+            <PrivateRoute allowedRoles={["doctor"]}>
+              <DoctorDashboard />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/donor"
+          element={
+            <PrivateRoute allowedRoles={["donor"]}>
+              <DonorDashboard />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/recipient"
+          element={
+            <PrivateRoute allowedRoles={["recipient"]}>
+              <RecipientDashboard />
+            </PrivateRoute>
+          }
+        />
 
-        {/* Fallback */}
+        {/* Hospitals */}
+        <Route
+          path="/hospitals"
+          element={
+            <PrivateRoute allowedRoles={["admin", "doctor"]}>
+              <HospitalsPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/hospitals/:hospitalId"
+          element={
+            <PrivateRoute allowedRoles={["admin", "doctor"]}>
+              <PageWrapper><HospitalDetailsPage /></PageWrapper>
+            </PrivateRoute>
+          }
+        />
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AnimatePresence>
   );
 }
 
-// ---------------- Page Wrapper ----------------
+// --------------------------------------------
+// PAGE TRANSITION WRAPPER
+// --------------------------------------------
 function PageWrapper({ children }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.35 }}
     >
       {children}
     </motion.div>

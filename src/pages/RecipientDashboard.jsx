@@ -212,20 +212,51 @@ export default function RecipientDashboard() {
   const [filterOrgan, setFilterOrgan] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
 
-  // Fetch user profile
-  useEffect(() => {
-    async function fetchUser() {
-      if (!auth.currentUser) return;
-      try {
-        const userRef = doc(db, "users", auth.currentUser.uid);
-        const docSnap = await getDoc(userRef);
-        if (docSnap.exists()) setUserData(docSnap.data());
-      } catch (err) {
-        console.error("Error fetching user data:", err);
+// Fetch user profile + hospital details
+useEffect(() => {
+  async function fetchUser() {
+    if (!auth.currentUser) return;
+
+    try {
+      const userRef = doc(db, "users", auth.currentUser.uid);
+      const userSnap = await getDoc(userRef);
+
+      if (userSnap.exists()) {
+        const data = userSnap.data();
+
+        let hospitalName = "—";
+        let hospitalCity = "—";
+
+        // If recipient has hospitalId → fetch hospital document
+        if (data.hospitalId) {
+          try {
+            const hospitalRef = doc(db, "hospitals", data.hospitalId);
+            const hospSnap = await getDoc(hospitalRef);
+
+            if (hospSnap.exists()) {
+              const hosp = hospSnap.data();
+              hospitalName = hosp.name || "—";
+              hospitalCity = hosp.city || "—";
+            }
+          } catch (e) {
+            console.error("Error loading hospital:", e);
+          }
+        }
+
+        setUserData({
+          ...data,
+          hospitalName,
+          hospitalCity,
+        });
       }
+    } catch (err) {
+      console.error("Error fetching user data:", err);
     }
-    fetchUser();
-  }, []);
+  }
+
+  fetchUser();
+}, []);
+
 
   // Request notification permission
   useEffect(() => {
@@ -454,6 +485,11 @@ export default function RecipientDashboard() {
                 <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Organ Needed</p>
                   <p className="text-xl font-bold text-indigo-600 dark:text-indigo-400">{userData.organType || "—"}</p>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Hospital</p>
+                <p className="text-xl font-bold">{userData.hospitalName || "—"}</p>
+                <p className="text-sm text-gray-500">{userData.hospitalCity || ""}</p>
                 </div>
               </div>
             </div>

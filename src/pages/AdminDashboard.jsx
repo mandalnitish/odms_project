@@ -1,3 +1,4 @@
+// src/pages/AdminDashboard.jsx
 import React, { useState, useEffect } from "react";
 import { db } from "../firebase";
 
@@ -10,10 +11,29 @@ import {
   updateDoc,
   deleteDoc,
 } from "firebase/firestore";
-import { Users, Activity, Heart, FileText, Download, Search, Filter, Edit2, Trash2, Save, X, TrendingUp, UserCheck, Calendar } from "lucide-react";
+import {
+  Users,
+  Activity,
+  Heart,
+  FileText,
+  Download,
+  Search,
+  Filter,
+  Edit2,
+  Trash2,
+  Save,
+  X,
+  TrendingUp,
+  UserCheck,
+  Calendar,
+  Building2,
+  MapPin,
+} from "lucide-react";
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
+import { Link } from "react-router-dom";
 
+// ----------------- UI HELPERS -----------------
 function Spinner() {
   return (
     <div className="flex justify-center py-6">
@@ -24,7 +44,9 @@ function Spinner() {
 
 function StatCard({ icon: Icon, label, value, bgColor, trend }) {
   return (
-    <div className={`${bgColor} rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1`}>
+    <div
+      className={`${bgColor} rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1`}
+    >
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-medium text-white/80 mb-1">{label}</p>
@@ -53,7 +75,30 @@ function BloodGroupChart({ users }) {
   }, {});
 
   const total = Object.values(bloodGroups).reduce((a, b) => a + b, 0);
-  const colors = ["bg-red-500", "bg-pink-500", "bg-purple-500", "bg-indigo-500", "bg-blue-500", "bg-cyan-500", "bg-teal-500", "bg-green-500"];
+  const colors = [
+    "bg-red-500",
+    "bg-pink-500",
+    "bg-purple-500",
+    "bg-indigo-500",
+    "bg-blue-500",
+    "bg-cyan-500",
+    "bg-teal-500",
+    "bg-green-500",
+  ];
+
+  if (!total) {
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+        <h3 className="text-lg font-semibold mb-4 flex items-center">
+          <Heart className="w-5 h-5 mr-2 text-red-500" />
+          Blood Group Distribution
+        </h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          No blood group data available yet.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
@@ -62,34 +107,69 @@ function BloodGroupChart({ users }) {
         Blood Group Distribution
       </h3>
       <div className="space-y-3">
-        {Object.entries(bloodGroups).sort((a, b) => b[1] - a[1]).map(([group, count], idx) => (
-          <div key={group} className="flex items-center">
-            <span className="w-16 text-sm font-medium">{group}</span>
-            <div className="flex-1 mx-3 bg-gray-200 dark:bg-gray-700 rounded-full h-6 overflow-hidden">
-              <div
-                className={`${colors[idx % colors.length]} h-full flex items-center justify-end px-2 transition-all duration-500`}
-                style={{ width: `${(count / total) * 100}%` }}
-              >
-                <span className="text-xs font-semibold text-white">{count}</span>
+        {Object.entries(bloodGroups)
+          .sort((a, b) => b[1] - a[1])
+          .map(([group, count], idx) => (
+            <div key={group} className="flex items-center">
+              <span className="w-16 text-sm font-medium">{group}</span>
+              <div className="flex-1 mx-3 bg-gray-200 dark:bg-gray-700 rounded-full h-6 overflow-hidden">
+                <div
+                  className={`${colors[idx % colors.length]} h-full flex items-center justify-end px-2 transition-all duration-500`}
+                  style={{ width: `${(count / total) * 100}%` }}
+                >
+                  <span className="text-xs font-semibold text-white">
+                    {count}
+                  </span>
+                </div>
               </div>
+              <span className="text-sm text-gray-600 dark:text-gray-400 w-12 text-right">
+                {((count / total) * 100).toFixed(0)}%
+              </span>
             </div>
-            <span className="text-sm text-gray-600 dark:text-gray-400 w-12 text-right">
-              {((count / total) * 100).toFixed(0)}%
-            </span>
-          </div>
-        ))}
+          ))}
       </div>
     </div>
   );
 }
 
+/** ✅ Organ types merged case-insensitively (Heart/heart → Heart) */
 function OrganTypeChart({ users }) {
   const organs = users.reduce((acc, u) => {
-    if (u.organType) {
-      acc[u.organType] = (acc[u.organType] || 0) + 1;
-    }
+    if (!u.organType) return acc;
+    const key = u.organType.trim().toLowerCase();
+    if (!key) return acc;
+    acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {});
+
+  if (Object.keys(organs).length === 0) {
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+        <h3 className="text-lg font-semibold mb-4 flex items-center">
+          <Activity className="w-5 h-5 mr-2 text-blue-500" />
+          Organ Types
+        </h3>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          No organ type data available yet.
+        </p>
+      </div>
+    );
+  }
+
+  const labelMap = {
+    heart: "Heart",
+    kidney: "Kidney",
+    lung: "Lung",
+    liver: "Liver",
+    eye: "Eye",
+    cornea: "Cornea",
+    pancreas: "Pancreas",
+  };
+
+  const prettyLabel = (key) => {
+    if (labelMap[key]) return labelMap[key];
+    return key.replace(/\b\w/g, (ch) => ch.toUpperCase());
+  };
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
@@ -98,10 +178,17 @@ function OrganTypeChart({ users }) {
         Organ Types
       </h3>
       <div className="grid grid-cols-2 gap-4">
-        {Object.entries(organs).map(([organ, count]) => (
-          <div key={organ} className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-600 rounded-lg p-4 text-center">
-            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{count}</p>
-            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 capitalize">{organ}</p>
+        {Object.entries(organs).map(([key, count]) => (
+          <div
+            key={key}
+            className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-700 dark:to-gray-600 rounded-lg p-4 text-center"
+          >
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+              {count}
+            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+              {prettyLabel(key)}
+            </p>
           </div>
         ))}
       </div>
@@ -119,30 +206,133 @@ function RecentActivity({ users }) {
         Recent Users
       </h3>
       <div className="space-y-3">
-        {recentUsers.map((user) => (
-          <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold">
-                {user.fullName?.charAt(0) || "U"}
+        {recentUsers.length === 0 ? (
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            No recent users yet.
+          </p>
+        ) : (
+          recentUsers.map((user) => (
+            <div
+              key={user.id}
+              className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+            >
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold">
+                  {user.fullName?.charAt(0) || "U"}
+                </div>
+                <div>
+                  <p className="font-medium text-sm">{user.fullName}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
+                    {user.role}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="font-medium text-sm">{user.fullName}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{user.role}</p>
+              <div className="text-right">
+                <p className="text-xs font-medium text-blue-600 dark:text-blue-400">
+                  {user.bloodGroup || "—"}
+                </p>
               </div>
             </div>
-            <div className="text-right">
-              <p className="text-xs font-medium text-blue-600 dark:text-blue-400">{user.bloodGroup || "—"}</p>
-            </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );
 }
 
+/** 🏥 Hospitals overview panel in Overview tab */
+function HospitalsOverview({ hospitals, loading }) {
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg flex flex-col h-full">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Building2 className="w-5 h-5 text-indigo-500" />
+          <h3 className="text-lg font-semibold">Hospitals Overview</h3>
+        </div>
+
+        {/* 🔗 Use Link instead of navigate() */}
+        <Link
+          to="/hospitals"
+          className="text-xs px-3 py-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors flex items-center gap-1"
+        >
+          Manage
+        </Link>
+      </div>
+
+      <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+        {hospitals.length} hospital{hospitals.length === 1 ? "" : "s"} in
+        system
+      </p>
+
+      {loading ? (
+        <div className="py-6">
+          <Spinner />
+        </div>
+      ) : hospitals.length === 0 ? (
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+          No hospitals found. Add hospitals from your{" "}
+          <span className="font-semibold">Hospital Management</span> page.
+        </p>
+      ) : (
+        <div className="space-y-3 flex-1">
+          {hospitals.slice(0, 4).map((h) => (
+            <div
+              key={h.id}
+              className="p-3 rounded-lg border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 flex items-start justify-between gap-3"
+            >
+              <div>
+                <p className="font-semibold text-sm">{h.name}</p>
+                <div className="flex items-center gap-1 mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  <MapPin className="w-3 h-3" />
+                  <span>
+                    {h.city || "—"}, {h.state || "—"}
+                  </span>
+                </div>
+                {h.type && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {h.type}
+                  </p>
+                )}
+              </div>
+              <div className="text-right text-xs">
+                {h.totalBeds != null && (
+                  <p className="text-gray-600 dark:text-gray-300">
+                    Beds:{" "}
+                    <span className="font-semibold">
+                      {h.totalBeds || h.beds || "—"}
+                    </span>
+                  </p>
+                )}
+                <span
+                  className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                    (h.status || "Active") === "Active"
+                      ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300"
+                      : "bg-gray-100 text-gray-800 dark:bg-gray-900/40 dark:text-gray-300"
+                  }`}
+                >
+                  {h.status || "Active"}
+                </span>
+              </div>
+            </div>
+          ))}
+          {hospitals.length > 4 && (
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              +{hospitals.length - 4} more hospitals…
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ----------------- MAIN COMPONENT -----------------
 export default function AdminDashboard() {
   const [users, setUsers] = useState([]);
+  const [hospitals, setHospitals] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [hospitalsLoading, setHospitalsLoading] = useState(true);
+
   const [filterRole, setFilterRole] = useState("");
   const [filterBlood, setFilterBlood] = useState("");
   const [searchName, setSearchName] = useState("");
@@ -150,19 +340,55 @@ export default function AdminDashboard() {
   const [editData, setEditData] = useState({});
   const [viewMode, setViewMode] = useState("overview");
 
-  // Fetch users from Firebase
+  // 👥 Real-time users
   useEffect(() => {
     setLoading(true);
-    const q = query(collection(db, "users"), orderBy("fullName"));
+    const qUsers = query(collection(db, "users"), orderBy("fullName"));
     const unsub = onSnapshot(
-      q,
+      qUsers,
       (snapshot) => {
-        setUsers(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setUsers(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
         setLoading(false);
       },
       (err) => {
-        console.error(err);
+        console.error("Failed to load users:", err);
         setLoading(false);
+      }
+    );
+    return () => unsub();
+  }, []);
+
+  // 🏥 Real-time hospitals for overview
+  useEffect(() => {
+    setHospitalsLoading(true);
+    const qHosp = query(collection(db, "hospitals"), orderBy("name"));
+    const unsub = onSnapshot(
+      qHosp,
+      (snapshot) => {
+        const list = snapshot.docs.map((d) => {
+          const h = d.data() || {};
+          return {
+            id: d.id,
+            name: h.name || "",
+            city: h.city || "",
+            state: h.state || "",
+            status: h.status || "Active",
+            totalBeds:
+              h.totalBeds != null
+                ? h.totalBeds
+                : h.beds != null
+                ? Number(h.beds) || null
+                : null,
+            type: h.type || h.hospitalType || "",
+          };
+        });
+        setHospitals(list);
+        setHospitalsLoading(false);
+      },
+      (err) => {
+        console.error("Failed to load hospitals:", err);
+        setHospitals([]);
+        setHospitalsLoading(false);
       }
     );
     return () => unsub();
@@ -170,9 +396,15 @@ export default function AdminDashboard() {
 
   const filteredUsers = users.filter((u) => {
     if (filterRole && u.role !== filterRole) return false;
-    if (filterBlood && u.bloodGroup?.toLowerCase() !== filterBlood.toLowerCase())
+    if (
+      filterBlood &&
+      u.bloodGroup?.toLowerCase() !== filterBlood.toLowerCase()
+    )
       return false;
-    if (searchName && !u.fullName?.toLowerCase().includes(searchName.toLowerCase()))
+    if (
+      searchName &&
+      !u.fullName?.toLowerCase().includes(searchName.toLowerCase())
+    )
       return false;
     return true;
   });
@@ -183,22 +415,21 @@ export default function AdminDashboard() {
   }, {});
 
   const exportToExcel = (list) => {
-    // Create CSV content
     const headers = ["Name", "Email", "Role", "Blood Group", "Organ", "Mobile"];
-    const rows = list.map(u => [
+    const rows = list.map((u) => [
       u.fullName,
       u.email || "—",
       u.role,
       u.bloodGroup || "—",
       u.organType || "—",
-      u.mobile || "—"
+      u.mobile || "—",
     ]);
-    
+
     const csvContent = [
       headers.join(","),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(","))
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
     ].join("\n");
-    
+
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -210,53 +441,48 @@ export default function AdminDashboard() {
 
   const exportToPDF = (list) => {
     const doc = new jsPDF();
-    
-    // Add title
+
     doc.setFontSize(20);
-    doc.setTextColor(59, 130, 246); // Blue color
+    doc.setTextColor(59, 130, 246);
     doc.text("User Management Report", 14, 20);
-    
-    // Add date
+
     doc.setFontSize(10);
     doc.setTextColor(100);
     doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
-    
-    // Add summary statistics
+
     doc.setFontSize(12);
     doc.setTextColor(0);
     doc.text(`Total Users: ${list.length}`, 14, 38);
     doc.text(`Donors: ${roleCounts.donor || 0}`, 14, 45);
     doc.text(`Recipients: ${roleCounts.recipient || 0}`, 14, 52);
     doc.text(`Doctors: ${roleCounts.doctor || 0}`, 14, 59);
-    
-    // Prepare table data
-    const tableData = list.map(u => [
+
+    const tableData = list.map((u) => [
       u.fullName || "—",
       u.email || "—",
       u.role || "—",
       u.bloodGroup || "—",
       u.organType || "—",
-      u.mobile || "—"
+      u.mobile || "—",
     ]);
-    
-    // Add table
+
     doc.autoTable({
       head: [["Name", "Email", "Role", "Blood Group", "Organ", "Mobile"]],
       body: tableData,
       startY: 68,
-      theme: 'grid',
+      theme: "grid",
       headStyles: {
-        fillColor: [59, 130, 246], // Blue
+        fillColor: [59, 130, 246],
         textColor: 255,
-        fontStyle: 'bold',
-        halign: 'center'
+        fontStyle: "bold",
+        halign: "center",
       },
       styles: {
         fontSize: 9,
         cellPadding: 3,
       },
       alternateRowStyles: {
-        fillColor: [245, 245, 245]
+        fillColor: [245, 245, 245],
       },
       columnStyles: {
         0: { cellWidth: 35 },
@@ -264,11 +490,10 @@ export default function AdminDashboard() {
         2: { cellWidth: 25 },
         3: { cellWidth: 25 },
         4: { cellWidth: 25 },
-        5: { cellWidth: 30 }
-      }
+        5: { cellWidth: 30 },
+      },
     });
-    
-    // Add footer
+
     const pageCount = doc.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
@@ -278,12 +503,11 @@ export default function AdminDashboard() {
         `Page ${i} of ${pageCount}`,
         doc.internal.pageSize.width / 2,
         doc.internal.pageSize.height - 10,
-        { align: 'center' }
+        { align: "center" }
       );
     }
-    
-    // Save the PDF
-    doc.save(`users_report_${new Date().toISOString().split('T')[0]}.pdf`);
+
+    doc.save(`users_report_${new Date().toISOString().split("T")[0]}.pdf`);
   };
 
   const startEditing = (user) => {
@@ -397,10 +621,16 @@ export default function AdminDashboard() {
               />
             </div>
 
-            {/* Charts Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-              <BloodGroupChart users={users} />
-              <OrganTypeChart users={users} />
+            {/* Charts + Hospitals Overview */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+              <div className="lg:col-span-2 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <BloodGroupChart users={users} />
+                <OrganTypeChart users={users} />
+              </div>
+              <HospitalsOverview
+                hospitals={hospitals}
+                loading={hospitalsLoading}
+              />
             </div>
 
             {/* Recent Activity */}
@@ -438,9 +668,13 @@ export default function AdminDashboard() {
                   className="px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">All Blood Groups</option>
-                  {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((b) => (
-                    <option key={b} value={b}>{b}</option>
-                  ))}
+                  {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(
+                    (b) => (
+                      <option key={b} value={b}>
+                        {b}
+                      </option>
+                    )
+                  )}
                 </select>
                 <button
                   onClick={() => {
@@ -478,8 +712,19 @@ export default function AdminDashboard() {
                 <table className="min-w-full">
                   <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
-                      {["Name", "Email", "Role", "Blood Group", "Organ", "Mobile", "Actions"].map((col) => (
-                        <th key={col} className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
+                      {[
+                        "Name",
+                        "Email",
+                        "Role",
+                        "Blood Group",
+                        "Organ",
+                        "Mobile",
+                        "Actions",
+                      ].map((col) => (
+                        <th
+                          key={col}
+                          className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider"
+                        >
                           {col}
                         </th>
                       ))}
@@ -488,19 +733,30 @@ export default function AdminDashboard() {
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                     {filteredUsers.length === 0 && (
                       <tr>
-                        <td colSpan={7} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                        <td
+                          colSpan={7}
+                          className="px-6 py-12 text-center text-gray-500 dark:text-gray-400"
+                        >
                           No users found
                         </td>
                       </tr>
                     )}
                     {filteredUsers.map((u) => (
-                      <tr key={u.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                      <tr
+                        key={u.id}
+                        className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                      >
                         <td className="px-6 py-4 whitespace-nowrap">
                           {editId === u.id ? (
                             <input
                               type="text"
                               value={editData.fullName}
-                              onChange={(e) => setEditData({ ...editData, fullName: e.target.value })}
+                              onChange={(e) =>
+                                setEditData({
+                                  ...editData,
+                                  fullName: e.target.value,
+                                })
+                              }
                               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-600 dark:text-white"
                             />
                           ) : (
@@ -508,7 +764,9 @@ export default function AdminDashboard() {
                               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold mr-3">
                                 {u.fullName?.charAt(0) || "U"}
                               </div>
-                              <span className="font-medium">{u.fullName || "—"}</span>
+                              <span className="font-medium">
+                                {u.fullName || "—"}
+                              </span>
                             </div>
                           )}
                         </td>
@@ -516,12 +774,17 @@ export default function AdminDashboard() {
                           {u.email || "—"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                            u.role === "donor" ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" :
-                            u.role === "recipient" ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" :
-                            u.role === "doctor" ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200" :
-                            "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                          }`}>
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                              u.role === "donor"
+                                ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                                : u.role === "recipient"
+                                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                                : u.role === "doctor"
+                                ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
+                                : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                            }`}
+                          >
                             {u.role}
                           </span>
                         </td>
@@ -529,16 +792,34 @@ export default function AdminDashboard() {
                           {editId === u.id ? (
                             <select
                               value={editData.bloodGroup}
-                              onChange={(e) => setEditData({ ...editData, bloodGroup: e.target.value })}
+                              onChange={(e) =>
+                                setEditData({
+                                  ...editData,
+                                  bloodGroup: e.target.value,
+                                })
+                              }
                               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-600 dark:text-white"
                             >
                               <option value="">Select</option>
-                              {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((b) => (
-                                <option key={b} value={b}>{b}</option>
+                              {[
+                                "A+",
+                                "A-",
+                                "B+",
+                                "B-",
+                                "AB+",
+                                "AB-",
+                                "O+",
+                                "O-",
+                              ].map((b) => (
+                                <option key={b} value={b}>
+                                  {b}
+                                </option>
                               ))}
                             </select>
                           ) : (
-                            <span className="font-semibold text-red-600 dark:text-red-400">{u.bloodGroup || "—"}</span>
+                            <span className="font-semibold text-red-600 dark:text-red-400">
+                              {u.bloodGroup || "—"}
+                            </span>
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -546,11 +827,18 @@ export default function AdminDashboard() {
                             <input
                               type="text"
                               value={editData.organType}
-                              onChange={(e) => setEditData({ ...editData, organType: e.target.value })}
+                              onChange={(e) =>
+                                setEditData({
+                                  ...editData,
+                                  organType: e.target.value,
+                                })
+                              }
                               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-600 dark:text-white"
                             />
                           ) : (
-                            <span className="capitalize">{u.organType || "—"}</span>
+                            <span className="capitalize">
+                              {u.organType || "—"}
+                            </span>
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -558,7 +846,12 @@ export default function AdminDashboard() {
                             <input
                               type="text"
                               value={editData.mobile}
-                              onChange={(e) => setEditData({ ...editData, mobile: e.target.value })}
+                              onChange={(e) =>
+                                setEditData({
+                                  ...editData,
+                                  mobile: e.target.value,
+                                })
+                              }
                               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-600 dark:text-white"
                             />
                           ) : (
