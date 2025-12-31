@@ -4,8 +4,10 @@
     "node": "20"
   },
   "dependencies": {
-    "firebase-admin": "^11.10.0",
-    "firebase-functions": "^6.4.0"
+    "dotenv": "^17.2.3",
+    "firebase-admin": "^11.11.1",
+    "firebase-functions": "^6.4.0",
+    "nodemailer": "^7.0.12"
   },
   "scripts": {
     "lint": "eslint .",
