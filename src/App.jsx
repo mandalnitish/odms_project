@@ -1,5 +1,5 @@
 // ----------------------------------------------
-// src/App.jsx  (FIXED VERSION - EMBEDDED CHATBOT)
+// src/App.jsx  (FIXED VERSION - WITH DOCUMENT VERIFICATION)
 // ----------------------------------------------
 import { useState, useEffect, useContext } from "react";
 import {
@@ -36,6 +36,7 @@ import DoctorDashboard from "./pages/DoctorDashboard";
 import HospitalsPage from "./pages/HospitalsPage";
 import HospitalDetailsPage from "./pages/HospitalDetailsPage";
 import ChatbotPage from "./pages/ChatbotPage";
+import DocumentVerificationPage from "./pages/DocumentVerificationPage";
 
 import logo from "./assets/logo.png";
 
@@ -65,7 +66,7 @@ export default function App() {
 }
 
 // --------------------------------------------
-// APP CONTENT (HEADER + ROUTES + CHATBOT)
+// APP CONTENT (HEADER + ROUTES)
 // --------------------------------------------
 function AppContent({ menuOpen, setMenuOpen, toggleDarkMode, darkMode }) {
   const { user, role } = useAuth();
@@ -152,6 +153,7 @@ function Header({ menuOpen, setMenuOpen, toggleDarkMode, darkMode }) {
             { name: "How It Works", path: "/how-it-works" },
             { name: "Eligibility", path: "/eligibility" },
             { name: "AI Assistant", path: "/chatbot" },
+            { name: "Verify Documents", path: "/verify-documents" },
             { name: "Hospitals", path: "/hospitals" },
           ].map((l) => (
             <Link
@@ -218,6 +220,7 @@ function Header({ menuOpen, setMenuOpen, toggleDarkMode, darkMode }) {
               { name: "How It Works", path: "/how-it-works" },
               { name: "Eligibility", path: "/eligibility" },
               { name: "AI Assistant", path: "/chatbot" },
+              { name: "Verify Documents", path: "/verify-documents" },
               { name: "Hospitals", path: "/hospitals" },
             ].map((link, i) => (
               <motion.div
@@ -296,6 +299,16 @@ function AnimatedRoutes() {
         <Route
           path="/chatbot"
           element={<PageWrapper><ChatbotPage /></PageWrapper>}
+        />
+
+        {/* Document Verification - Private Route */}
+        <Route
+          path="/verify-documents"
+          element={
+            <PrivateRoute allowedRoles={["donor", "recipient"]}>
+              <PageWrapper><DocumentVerificationPage /></PageWrapper>
+            </PrivateRoute>
+          }
         />
 
         {/* Private Routes */}

@@ -15,6 +15,7 @@ import {
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
+import DoctorReviewDashboard from "../components/DoctorReviewDashboard.jsx";
 
 function Spinner() {
   return (
@@ -995,6 +996,7 @@ export default function DoctorDashboard() {
             { id: "donors", label: "Donors", icon: "👥" },
             { id: "recipients", label: "Recipients", icon: "🏥" },
             { id: "matches", label: "Matches", icon: "🔗" },
+            { id: "documents", label: "Document Review", icon: "📄" }, 
           ].map((tab) => (
             <button
               key={tab.id}
@@ -1418,169 +1420,132 @@ export default function DoctorDashboard() {
             </div>
           )}
 
-          {/* Matches Tab */}
-          {activeTab === "matches" && (
-            <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-white/20">
-              <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                <span>🔗</span>
-                <span>Transplant Matches</span>
-              </h2>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b-2 border-gray-200 dark:border-gray-700">
-                      <th className="text-left py-4 px-4 font-semibold">
-                        Donor
-                      </th>
-                      <th className="text-left py-4 px-4 font-semibold">
-                        Recipient
-                      </th>
-                      <th className="text-left py-4 px-4 font-semibold">
-                        Organ
-                      </th>
-                      <th className="text-left py-4 px-4 font-semibold">
-                        Blood
-                      </th>
-                      <th className="text-left py-4 px-4 font-semibold">
-                        Score
-                      </th>
-                      <th className="text-left py-4 px-4 font-semibold">
-                        Status
-                      </th>
-                      <th className="text-left py-4 px-4 font-semibold">
-                        Tracking
-                      </th>
-                      <th className="text-left py-4 px-4 font-semibold">
-                        Hospital
-                      </th>
-                      <th className="text-left py-4 px-4 font-semibold">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredMatches.length === 0 ? (
-                      <tr>
-                        <td
-                          colSpan="9"
-                          className="text-center py-8 text-gray-500"
-                        >
-                          {uniqueMatches.length === 0
-                            ? 'No matches yet. Click "AI Match" to generate matches.'
-                            : "No matches found with current filters."}
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredMatches.map((match) => (
-                        <tr
-                          key={match.id}
-                          className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-all ${
-                            updatedMatches[match.id]
-                              ? "bg-green-100 dark:bg-green-900/30"
-                              : ""
-                          }`}
-                        >
-                          <td className="py-4 px-4 font-medium">
-                            <Highlight
-                              text={match.donorName}
-                              highlight={searchName}
-                            />
-                          </td>
-                          <td className="py-4 px-4 font-medium">
-                            <Highlight
-                              text={match.recipientName}
-                              highlight={searchName}
-                            />
-                          </td>
-                          <td className="py-4 px-4">
-                            {match.organType}
-                          </td>
-                          <td className="py-4 px-4">
-                            <span className="px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400 rounded-full text-sm font-medium">
-                              {match.bloodGroup}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4">
-                            <div className="flex items-center gap-2">
-                              <div className="w-12 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-gradient-to-r from-green-500 to-emerald-500 transition-all duration-1000"
-                                  style={{ width: `${match.score}%` }}
-                                ></div>
-                              </div>
-                              <span className="font-semibold">
-                                {match.score}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="py-4 px-4">
-                            <StatusBadge status={match.status} />
-                          </td>
-                          <td className="py-4 px-4">
-                            <StatusBadge status={match.trackingStatus} />
-                          </td>
-                          <td className="py-4 px-4">
-                            <div>
-                              <p className="text-sm font-medium">
-                                {match.hospital || "Not Assigned"}
-                              </p>
-                              {match.hospitalId && (
-                                <p className="text-xs text-gray-500">
-                                  {
-                                    hospitals.find(
-                                      (h) => h.id === match.hospitalId
-                                    )?.city
-                                  }
-                                </p>
-                              )}
-                            </div>
-                          </td>
-                          <td className="py-4 px-4">
-                            <div className="flex gap-2 flex-wrap">
-                              {match.status === "Pending" && (
-                                <>
-                                  <button
-                                    onClick={() =>
-                                      updateMatchStatus(
-                                        match.id,
-                                        "Approved"
-                                      )
-                                    }
-                                    className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all text-sm"
-                                  >
-                                    Approve
-                                  </button>
-                                  <button
-                                    onClick={() =>
-                                      updateMatchStatus(
-                                        match.id,
-                                        "Rejected"
-                                      )
-                                    }
-                                    className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all text-sm"
-                                  >
-                                    Reject
-                                  </button>
-                                </>
-                              )}
-                              <button
-                                onClick={() => setSelectedMatch(match)}
-                                className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all text-sm"
-                              >
-                                Track
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
+           {/* Matches Tab */}
+  {activeTab === "matches" && (
+    <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-white/20">
+      <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+        <span>🔗</span>
+        <span>Transplant Matches</span>
+      </h2>
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b-2 border-gray-200 dark:border-gray-700">
+              <th className="text-left py-4 px-4 font-semibold">Donor</th>
+              <th className="text-left py-4 px-4 font-semibold">Recipient</th>
+              <th className="text-left py-4 px-4 font-semibold">Organ</th>
+              <th className="text-left py-4 px-4 font-semibold">Blood</th>
+              <th className="text-left py-4 px-4 font-semibold">Score</th>
+              <th className="text-left py-4 px-4 font-semibold">Status</th>
+              <th className="text-left py-4 px-4 font-semibold">Tracking</th>
+              <th className="text-left py-4 px-4 font-semibold">Hospital</th>
+              <th className="text-left py-4 px-4 font-semibold">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredMatches.length === 0 ? (
+              <tr>
+                <td colSpan="9" className="text-center py-8 text-gray-500">
+                  {uniqueMatches.length === 0
+                    ? 'No matches yet. Click "AI Match" to generate matches.'
+                    : "No matches found with current filters."}
+                </td>
+              </tr>
+            ) : (
+              filteredMatches.map((match) => (
+                <tr
+                  key={match.id}
+                  className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-all ${
+                    updatedMatches[match.id] ? "bg-green-100 dark:bg-green-900/30" : ""
+                  }`}
+                >
+                  <td className="py-4 px-4 font-medium">
+                    <Highlight text={match.donorName} highlight={searchName} />
+                  </td>
+                  <td className="py-4 px-4 font-medium">
+                    <Highlight text={match.recipientName} highlight={searchName} />
+                  </td>
+                  <td className="py-4 px-4">{match.organType}</td>
+                  <td className="py-4 px-4">
+                    <span className="px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-400 rounded-full text-sm font-medium">
+                      {match.bloodGroup}
+                    </span>
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-12 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-green-500 to-emerald-500 transition-all duration-1000"
+                          style={{ width: `${match.score}%` }}
+                        ></div>
+                      </div>
+                      <span className="font-semibold">{match.score}</span>
+                    </div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <StatusBadge status={match.status} />
+                  </td>
+                  <td className="py-4 px-4">
+                    <StatusBadge status={match.trackingStatus} />
+                  </td>
+                  <td className="py-4 px-4">
+                    <div>
+                      <p className="text-sm font-medium">{match.hospital || "Not Assigned"}</p>
+                      {match.hospitalId && (
+                        <p className="text-xs text-gray-500">
+                          {hospitals.find((h) => h.id === match.hospitalId)?.city}
+                        </p>
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-4 px-4">
+                    <div className="flex gap-2 flex-wrap">
+                      {match.status === "Pending" && (
+                        <>
+                          <button
+                            onClick={() => updateMatchStatus(match.id, "Approved")}
+                            className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all text-sm"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => updateMatchStatus(match.id, "Rejected")}
+                            className="px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all text-sm"
+                          >
+                            Reject
+                          </button>
+                        </>
+                      )}
+                      <button
+                        onClick={() => setSelectedMatch(match)}
+                        className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all text-sm"
+                      >
+                        Track
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
-  );
+  )}
+
+  {/* 🚨 Document Review Tab (Now Correctly Placed) */}
+  {activeTab === "documents" && (
+    <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-white/20">
+      <DoctorReviewDashboard
+        matches={matches}
+        doctors={doctors}
+        hospitals={hospitals}
+      />
+    </div>
+  )}
+
+</div> {/* END of Tab Content */}
+</div>
+</div>
+);
 }
