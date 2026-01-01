@@ -1,0 +1,35 @@
+[33mcommit c5caa17766afc4f9e16e257aa04cc24c80c1fa0c[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m
+Author: Nitish Mandal <nitishmandal367@gmail.com>
+Date:   Thu Jan 1 12:19:43 2026 +0530
+
+    Added Doctor Review Dashboard, Document Upload System & Verification Page + UI updates
+
+[33mcommit 3e9a3ed143bb5d538d4eff0228dfb79a24d31264[m[33m ([m[1;31morigin/main[m[33m)[m
+Author: Nitish Mandal <nitishmandal367@gmail.com>
+Date:   Thu Jan 1 11:32:53 2026 +0530
+
+    Remove accidental file
+
+[33mcommit 37af758ed98bca2da268718658f765b8a8383be3[m
+Author: Nitish Mandal <nitishmandal367@gmail.com>
+Date:   Thu Jan 1 11:32:18 2026 +0530
+
+    update
+
+[33mcommit a5db496e6d2c76e71d91a9dece144c30f2d2d48a[m
+Author: Nitish Mandal <nitishmandal367@gmail.com>
+Date:   Tue Dec 30 19:28:29 2025 +0530
+
+    Add Firebase GitHub Actions deployment workflows
+
+[33mcommit 2cb5018b060fb729cb34f6e6314def4c31d8759c[m
+Author: Nitish Mandal <nitishmandal367@gmail.com>
+Date:   Tue Dec 30 19:19:24 2025 +0530
+
+    Updated dashboards, added chatbot components, and new hospital pages
+
+[33mcommit 2da87831e8ee875ac537a9d0ce61c80985ad3aa2[m
+Author: Nitish Mandal <nitishmandal367@gmail.com>
+Date:   Wed Dec 3 20:38:49 2025 +0530
+
+    Initial commit of ODMS project
