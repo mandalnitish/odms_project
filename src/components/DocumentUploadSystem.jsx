@@ -8,7 +8,7 @@ const DocumentUploadSystem = () => {
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
 
-  const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY || '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';
+  const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 
   const DOCUMENT_TYPES = [
     { id: 'aadhaar', label: 'Aadhaar Card', required: true, icon: '🆔' },
