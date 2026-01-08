@@ -1,17 +1,22 @@
+// ----------------------------------------------
+// src/components/ODMSChatbot.jsx (with API key)
+// ----------------------------------------------
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Loader2 } from 'lucide-react';
+import { Send, Bot, User, Loader2, Sparkles } from 'lucide-react';
 
 const ODMSChatbot = () => {
   const [messages, setMessages] = useState([
     {
       type: 'bot',
-      text: "Hello! I'm your Organ Donation Assistant. I can help you with:\n\n• Understanding organ donation process\n• Eligibility criteria\n• Debunking common myths\n• Guiding you through registration\n• Answering general questions\n\nHow can I assist you today?",
+      text: "Hello! I'm your AI-powered Organ Donation Assistant. I can help you with:\n\n• Understanding organ donation process\n• Eligibility criteria\n• Debunking common myths\n• Guiding you through registration\n• Answering general questions\n\nHow can I assist you today?",
       timestamp: new Date()
     }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
+
+  const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -21,75 +26,60 @@ const ODMSChatbot = () => {
     scrollToBottom();
   }, [messages]);
 
-  // FAQ knowledge base
-  const faqDatabase = {
-    eligibility: {
-      keywords: ['eligible', 'who can donate', 'age limit', 'criteria', 'qualify'],
-      response: "**Eligibility Criteria for Organ Donation:**\n\n✓ **Age:** Anyone can register, but typically 18+ years\n✓ **Health:** Good general health at the time of donation\n✓ **Consent:** Voluntary decision with family awareness\n✓ **Medical History:** Some conditions may affect specific organs\n\n**Important:** Even with medical conditions, you may still donate some organs. Medical professionals make the final determination at the time of donation.\n\nWould you like to know about any specific medical condition?"
-    },
-    process: {
-      keywords: ['process', 'how to donate', 'procedure', 'steps', 'how does it work'],
-      response: "**Organ Donation Process:**\n\n**1. Registration** (5 minutes)\n   • Fill out the online form\n   • Provide basic medical information\n   • Upload ID proof\n\n**2. Verification**\n   • Document verification\n   • Medical history review\n\n**3. Donor Card**\n   • Receive digital donor card\n   • Share with family members\n\n**4. Database Entry**\n   • Added to national registry\n   • Matching algorithm activated\n\n**For Living Donation:**\n   • Additional medical tests required\n   • Counseling sessions\n   • Surgery scheduling\n\nShall I guide you through the registration process?"
-    },
-    myths: {
-      keywords: ['myth', 'misconception', 'false', 'rumor', 'belief'],
-      response: "**Common Myths Debunked:**\n\n❌ **Myth 1:** \"Doctors won't try to save my life\"\n✓ **Truth:** Medical teams are separate from transplant teams. Your care comes first, always.\n\n❌ **Myth 2:** \"I'm too old to donate\"\n✓ **Truth:** There's no age limit. Organs are evaluated individually at the time.\n\n❌ **Myth 3:** \"Rich people get preferential treatment\"\n✓ **Truth:** Allocation is based on medical urgency, compatibility, and waiting time only.\n\n❌ **Myth 4:** \"My religion doesn't allow it\"\n✓ **Truth:** Most religions support organ donation as an act of charity and saving lives.\n\n❌ **Myth 5:** \"My body will be disfigured\"\n✓ **Truth:** Surgical procedures are respectful and cosmetically sensitive.\n\nWant to know more about any specific myth?"
-    },
-    organs: {
-      keywords: ['which organs', 'what can be donated', 'types of organs', 'kidney', 'liver', 'heart'],
-      response: "**Organs & Tissues That Can Be Donated:**\n\n**Major Organs:**\n❤️ Heart\n🫁 Lungs (both)\n🔴 Liver\n🩸 Kidneys (both)\n🥞 Pancreas\n🧠 Intestines\n\n**Tissues:**\n👁️ Corneas\n🦴 Bones\n💪 Tendons\n💓 Heart valves\n🧬 Skin\n🩸 Blood vessels\n\n**Living Donation Possible:**\n• One kidney\n• Portion of liver\n• Portion of lung\n• Portion of pancreas\n• Bone marrow\n\nOne donor can save up to 8 lives and enhance 75+ lives through tissue donation!\n\nWant to know about a specific organ?"
-    },
-    registration: {
-      keywords: ['register', 'sign up', 'how to register', 'join', 'enroll'],
-      response: "**Let me guide you through registration:**\n\n**Step 1: Basic Information**\n• Full name\n• Date of birth\n• Contact details\n• Address\n\n**Step 2: Medical Information**\n• Blood group\n• Existing medical conditions\n• Allergies\n• Current medications\n\n**Step 3: Documents**\n• Government ID (Aadhaar/Passport/Driving License)\n• Recent photograph\n\n**Step 4: Consent**\n• Read and agree to terms\n• Emergency contact\n• Family awareness confirmation\n\n**Time Required:** 5-10 minutes\n\nReady to start? Type 'start registration' or visit the registration page directly!"
-    },
-    living_donor: {
-      keywords: ['living donor', 'donate while alive', 'living donation', 'donate kidney'],
-      response: "**Living Organ Donation:**\n\nYou can donate while alive and save a life today!\n\n**What can be donated:**\n• One kidney (most common)\n• Part of liver (regenerates)\n• Part of lung\n• Part of pancreas\n• Bone marrow\n\n**Requirements:**\n✓ Age 18-60 years\n✓ Good physical and mental health\n✓ Compatible blood type\n✓ Willing to undergo medical evaluation\n✓ No high blood pressure or diabetes\n\n**Process:**\n1. Initial consultation\n2. Medical tests (2-3 weeks)\n3. Psychological evaluation\n4. Surgery scheduling\n5. Post-operative care\n\n**Recovery:** 4-6 weeks\n\n**Important:** All medical expenses typically covered by recipient's insurance.\n\nWant to know more about living donation?"
-    },
-    emergency: {
-      keywords: ['emergency', 'urgent', 'immediate', 'critical', 'now'],
-      response: "🚨 **For Medical Emergencies:**\n\nIf you or someone needs an organ urgently:\n\n**Immediate Actions:**\n1. Contact your doctor/hospital immediately\n2. Get registered on the transplant waiting list\n3. Ensure all medical records are updated\n\n**Emergency Helpline:** [Your helpline number]\n**Email:** emergency@odms.org\n\n**For Donor Emergency:**\nIf you have information about a potential donor in critical condition, please contact the nearest transplant center immediately.\n\n**Remember:** Time is critical in organ transplantation.\n\nNeed help contacting a hospital?"
-    }
-  };
+  // System prompt for AI
+  const SYSTEM_PROMPT = `You are an expert AI assistant for an Organ Donor Management System. Your role is to provide accurate, compassionate, and helpful information about organ donation.
 
-  const findBestResponse = (userInput) => {
-    const input = userInput.toLowerCase();
-    
-    // Check for greetings
-    if (/^(hi|hello|hey|greetings|namaste|good morning|good evening)/.test(input)) {
-      return "Hello! How can I help you with organ donation today? You can ask me about:\n• Eligibility criteria\n• Donation process\n• Common myths\n• Registration steps\n• Specific organs";
-    }
+Key responsibilities:
+1. Answer questions about organ donation eligibility, process, and requirements
+2. Debunk common myths with factual information
+3. Guide users through registration processes
+4. Provide emotional support and encouragement
+5. Explain medical terminology in simple terms
+6. Address concerns about safety, ethics, and religious aspects
 
-    // Check for thanks
-    if (/^(thanks|thank you|appreciated)/.test(input)) {
-      return "You're welcome! If you have any more questions about organ donation, feel free to ask. Remember, your decision to become a donor can save up to 8 lives! 💚";
-    }
+Guidelines:
+- Be empathetic and encouraging
+- Use simple, clear language
+- Cite facts when discussing medical information
+- Emphasize that one donor can save up to 8 lives
+- Encourage family discussions about donation decisions
+- Never provide medical diagnosis or treatment advice
+- Always suggest consulting healthcare professionals for medical decisions
 
-    // Search through FAQ database
-    for (const [category, data] of Object.entries(faqDatabase)) {
-      for (const keyword of data.keywords) {
-        if (input.includes(keyword)) {
-          return data.response;
-        }
+Context: You're helping users in India, so be aware of local regulations and cultural considerations.`;
+
+  // Get AI Response using Groq
+  const getAIResponse = async (userMessage) => {
+    try {
+      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${GROQ_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user', content: userMessage }
+          ],
+          temperature: 0.7,
+          max_tokens: 1000,
+          top_p: 1,
+          stream: false
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('AI API request failed');
       }
-    }
 
-    // Check for specific keywords
-    if (input.includes('family') || input.includes('tell family')) {
-      return "**Informing Your Family:**\n\nIt's crucial to discuss your decision with family members:\n\n✓ **Why it matters:** Family consent is often required\n✓ **How to approach:** Share your motivations and values\n✓ **Resources:** We can provide family discussion guides\n✓ **Legal aspect:** In India, family consent is typically needed\n\n**Tips:**\n• Choose a calm, comfortable setting\n• Explain why it's important to you\n• Address their concerns\n• Share educational materials\n• Document their awareness\n\nWould you like tips on how to have this conversation?";
+      const data = await response.json();
+      return data.choices[0].message.content;
+    } catch (error) {
+      console.error('AI Error:', error);
+      return "I apologize, but I'm having trouble connecting to my AI service right now. Please try again in a moment, or ask me about:\n\n• Eligibility criteria\n• Donation process\n• Common myths\n• Registration steps";
     }
-
-    if (input.includes('cost') || input.includes('price') || input.includes('fee')) {
-      return "**Costs Related to Organ Donation:**\n\n💰 **Registration:** Completely FREE\n💰 **Being a Donor:** NO COST to you or your family\n💰 **Living Donation:** All medical expenses typically covered by recipient\n💰 **Deceased Donation:** No cost to donor's family\n\n**Important:** Organ donation should never involve financial transactions. It's illegal to buy or sell organs.\n\nIf anyone asks for money, please report it immediately!\n\nHave other questions?";
-    }
-
-    if (input.includes('cancel') || input.includes('remove') || input.includes('unregister')) {
-      return "**Changing Your Mind:**\n\nYou can change your decision at any time! \n\n**To update or cancel:**\n1. Log into your account\n2. Go to 'My Profile'\n3. Select 'Donation Status'\n4. Update your preferences\n\n**Remember:**\n• It's completely your choice\n• No judgment or questions asked\n• You can re-register later\n• Inform your family about changes\n\nNeed help with account access?";
-    }
-
-    // Default response for unrecognized queries
-    return "I'm not sure I fully understood your question. Here's what I can help you with:\n\n1️⃣ **Eligibility** - Who can donate organs?\n2️⃣ **Process** - How does organ donation work?\n3️⃣ **Myths** - Common misconceptions debunked\n4️⃣ **Registration** - Step-by-step guide\n5️⃣ **Organs** - What can be donated?\n6️⃣ **Living Donation** - Donate while alive\n\nCould you please rephrase your question or choose from the topics above?";
   };
 
   const handleSend = async () => {
@@ -102,19 +92,29 @@ const ODMSChatbot = () => {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const currentInput = input;
     setInput('');
     setIsLoading(true);
 
-    // Simulate AI processing delay
-    setTimeout(() => {
+    try {
+      const aiResponse = await getAIResponse(currentInput);
+      
       const botResponse = {
         type: 'bot',
-        text: findBestResponse(input),
+        text: aiResponse,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, botResponse]);
+    } catch (error) {
+      const errorResponse = {
+        type: 'bot',
+        text: "I apologize, but I encountered an error. Please try again or rephrase your question.",
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorResponse]);
+    } finally {
       setIsLoading(false);
-    }, 800);
+    }
   };
 
   const handleKeyPress = (e) => {
@@ -128,20 +128,28 @@ const ODMSChatbot = () => {
     { label: 'Eligibility Criteria', query: 'Who is eligible to donate organs?' },
     { label: 'How to Register', query: 'How do I register as an organ donor?' },
     { label: 'Common Myths', query: 'What are common myths about organ donation?' },
-    { label: 'Donation Process', query: 'What is the organ donation process?' }
+    { label: 'Living Donation', query: 'Can I donate organs while alive?' }
   ];
 
   return (
     <div className="w-full max-w-4xl mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden border border-gray-200 dark:border-gray-700">
       {/* Header */}
       <div className="bg-gradient-to-r from-green-500 to-green-500 text-white p-6">
-        <div className="flex items-center gap-4">
-          <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
-            <Bot size={32} />
-          </div>
-          <div>
-            <h2 className="font-bold text-2xl">ODMS AI Assistant</h2>
-            <p className="text-white/90 text-sm">Ask me anything about organ donation</p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
+              <Bot size={32} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="font-bold text-2xl">ODMS AI Assistant</h2>
+                <span className="flex items-center gap-1 bg-white/20 px-2 py-1 rounded-full text-xs">
+                  <Sparkles size={14} />
+                  AI Powered
+                </span>
+              </div>
+              <p className="text-white/90 text-sm">Powered by NixBot</p>
+            </div>
           </div>
         </div>
       </div>
@@ -231,7 +239,7 @@ const ODMSChatbot = () => {
           </button>
         </div>
         <p className="text-xs text-gray-400 dark:text-gray-500 mt-3 text-center">
-          Powered by NixBot • Saves lives through information
+          🤖 Powered by NixBot • Saves lives through information
         </p>
       </div>
     </div>

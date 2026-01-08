@@ -37,7 +37,7 @@ import HospitalsPage from "./pages/HospitalsPage";
 import HospitalDetailsPage from "./pages/HospitalDetailsPage";
 import ChatbotPage from "./pages/ChatbotPage";
 import DocumentVerificationPage from "./pages/DocumentVerificationPage";
-
+import ChatSystem from './components/ChatSystem';
 import logo from "./assets/logo.png";
 
 // --------------------------------------------
@@ -107,7 +107,7 @@ function AppContent({ menuOpen, setMenuOpen, toggleDarkMode, darkMode }) {
       />
 
       <AnimatedRoutes />
-
+      {user && <ChatSystem />}
       <Footer />
     </div>
   );

@@ -9,7 +9,7 @@ import {
 } from "firebase/auth";
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import logo from "../assets/logo.png";
-import { Eye, EyeOff } from "lucide-react"; // 👈 Import icons
+import { Eye, EyeOff } from "lucide-react";
 
 export default function AuthPage({ showLogo = true }) {
   const navigate = useNavigate();
@@ -28,7 +28,7 @@ export default function AuthPage({ showLogo = true }) {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [showPassword, setShowPassword] = useState(false); // 👈 State for show/hide password
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -51,9 +51,19 @@ export default function AuthPage({ showLogo = true }) {
       );
       const user = userCredential.user;
       const docSnap = await getDoc(doc(db, "users", user.uid));
+      
       if (docSnap.exists()) {
-        const role = docSnap.data().role || "donor";
-        navigate(`/${role}`);
+        const userData = docSnap.data();
+        const role = userData.role || "donor";
+        
+        // Check if documents are verified
+        if (!userData.documentsVerified && (role === 'donor' || role === 'recipient')) {
+          // Redirect to document verification page
+          navigate("/verify-documents");
+        } else {
+          // Documents verified or not required (doctor/admin), go to dashboard
+          navigate(`/${role}`);
+        }
       } else {
         setError("User data not found. Contact admin.");
       }
@@ -75,6 +85,8 @@ export default function AuthPage({ showLogo = true }) {
         formData.password
       );
       const user = userCredential.user;
+      
+      // Create user document with documentsVerified flag
       await setDoc(doc(db, "users", user.uid), {
         fullName: formData.fullName,
         email: formData.email,
@@ -83,9 +95,19 @@ export default function AuthPage({ showLogo = true }) {
         bloodGroup: formData.bloodGroup,
         organType: formData.organType,
         role: formData.role,
+        documentsVerified: false, // New users need to verify documents
+        documentsUploaded: false,
         createdAt: serverTimestamp(),
       });
-      navigate(`/${formData.role}`);
+      
+      // Redirect based on role
+      if (formData.role === 'donor' || formData.role === 'recipient') {
+        // Donors and recipients must upload documents first
+        navigate("/verify-documents");
+      } else {
+        // Doctors and admins can go directly to dashboard
+        navigate(`/${formData.role}`);
+      }
     } catch (err) {
       setError(err.message);
     }
