@@ -39,6 +39,8 @@ import ChatbotPage from "./pages/ChatbotPage";
 import DocumentVerificationPage from "./pages/DocumentVerificationPage";
 import ChatSystem from './components/ChatSystem';
 import logo from "./assets/logo.png";
+import ScrollToTop from "./components/ScrollToTop";
+import ScrollToTopButton from "./components/ScrollToTopButton";
 
 // --------------------------------------------
 // MAIN APP WRAPPER
@@ -54,6 +56,7 @@ export default function App() {
   return (
     <AuthProvider>
       <Router>
+        <ScrollToTop />
         <AppContent
           menuOpen={menuOpen}
           setMenuOpen={setMenuOpen}
@@ -108,6 +111,7 @@ function AppContent({ menuOpen, setMenuOpen, toggleDarkMode, darkMode }) {
 
       <AnimatedRoutes />
       {user && <ChatSystem />}
+      <ScrollToTopButton />
       <Footer />
     </div>
   );
