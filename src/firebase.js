@@ -12,6 +12,7 @@ import {
   collection,
   onSnapshot,
 } from "firebase/firestore";
+import { getStorage } from "firebase/storage"; // ADDED
 
 // ---------------------------
 // Your Firebase config
@@ -32,6 +33,7 @@ const firebaseConfig = {
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+export const storage = getStorage(app); // ADDED
 export { serverTimestamp };
 
 // ---------------------------
@@ -93,7 +95,7 @@ export const listenToOrganTransport = (transportId, callback) => {
 };
 
 // ======================================================
-// 🚀 NEW: HOSPITAL MODULE FIRESTORE HELPERS
+// 🚀 HOSPITAL MODULE FIRESTORE HELPERS
 // ======================================================
 
 // -----------------------------

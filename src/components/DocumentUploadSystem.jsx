@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, FileText, Clock, Loader2, Eye, Shield, Trash2, CheckCircle, XCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { db } from '../firebase';
+import { collection, addDoc, query, where, onSnapshot, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
 
 const DocumentUploadSystem = () => {
   const { user } = useAuth();
   const [documents, setDocuments] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');
 
   const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 
@@ -19,23 +22,66 @@ const DocumentUploadSystem = () => {
     { id: 'consent_form', label: 'Consent Form', required: true, icon: '📝' }
   ];
 
-  // Load documents from localStorage (simulate database)
+  // Load documents from Firestore (real-time)
   useEffect(() => {
-    const savedDocs = localStorage.getItem(`documents_${user.uid}`);
-    if (savedDocs) {
-      setDocuments(JSON.parse(savedDocs));
+    if (!user) {
+      console.log('No user logged in');
+      return;
     }
-  }, [user.uid]);
 
-  // Save documents to localStorage
-  const saveDocuments = (docs) => {
-    localStorage.setItem(`documents_${user.uid}`, JSON.stringify(docs));
-    setDocuments(docs);
-  };
+    console.log('Setting up Firestore listener for user:', user.uid);
+    
+    try {
+      const documentsRef = collection(db, 'documents');
+      const q = query(documentsRef, where('userId', '==', user.uid));
+
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const docs = snapshot.docs.map(doc => ({
+          firestoreId: doc.id,
+          ...doc.data()
+        }));
+        
+        console.log('✅ Loaded documents from Firestore:', docs.length, docs);
+        setDocuments(docs);
+      }, (error) => {
+        console.error('❌ Firestore listener error:', error);
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
+        
+        if (error.code === 'permission-denied') {
+          alert('Permission denied. Please check Firestore security rules.');
+        } else if (error.code === 'unavailable') {
+          alert('Firestore is unavailable. Please check your internet connection.');
+        } else {
+          alert(`Error loading documents: ${error.message}`);
+        }
+      });
+
+      return () => {
+        console.log('Cleaning up Firestore listener');
+        unsubscribe();
+      };
+    } catch (error) {
+      console.error('❌ Error setting up listener:', error);
+      alert('Failed to initialize document listener. Please refresh the page.');
+    }
+  }, [user]);
 
   // AI Document Analysis
   const analyzeDocument = async (file, docType) => {
+    if (!GROQ_API_KEY) {
+      console.warn('GROQ API key not configured - skipping AI analysis');
+      return {
+        readable: true,
+        appears_genuine: true,
+        complete: true,
+        medical_info: null,
+        notes: 'Awaiting doctor review - AI analysis not configured'
+      };
+    }
+
     try {
+      console.log('Starting AI analysis for:', file.name);
       const base64 = await fileToBase64(file);
       
       const analysisPrompt = `Analyze this ${docType} document for an Organ Donor Management System.
@@ -66,7 +112,7 @@ Respond in JSON format:
           'Authorization': `Bearer ${GROQ_API_KEY}`
         },
         body: JSON.stringify({
-          model: 'llama-3.2-90b-vision-preview',
+          model: 'llama-3.2-11b-vision-preview',
           messages: [
             {
               role: 'user',
@@ -84,14 +130,22 @@ Respond in JSON format:
         })
       });
 
-      if (!response.ok) throw new Error('Analysis failed');
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('AI Analysis API error:', errorText);
+        throw new Error('Analysis failed');
+      }
 
       const data = await response.json();
       const analysisText = data.choices[0].message.content;
+      console.log('AI Analysis raw response:', analysisText);
+      
       const jsonMatch = analysisText.match(/\{[\s\S]*\}/);
       
       if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+        const parsed = JSON.parse(jsonMatch[0]);
+        console.log('AI Analysis parsed:', parsed);
+        return parsed;
       }
       
       return {
@@ -118,13 +172,21 @@ Respond in JSON format:
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = () => resolve(reader.result.split(',')[1]);
-      reader.onerror = reject;
+      reader.onerror = (error) => {
+        console.error('FileReader error:', error);
+        reject(error);
+      };
     });
   };
 
   const handleFileUpload = async (event, docType) => {
     const file = event.target.files[0];
-    if (!file) return;
+    if (!file) {
+      console.log('No file selected');
+      return;
+    }
+
+    console.log('File selected:', file.name, 'Size:', file.size, 'Type:', file.type);
 
     const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
     if (!validTypes.includes(file.type)) {
@@ -132,63 +194,134 @@ Respond in JSON format:
       return;
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      alert('File size must be less than 10MB');
+    // Limit file size to 500KB for Firestore storage
+    if (file.size > 500 * 1024) {
+      alert('File size must be less than 500KB when using Firestore storage. Please compress your file or upgrade to Firebase Blaze plan for larger files.');
       return;
     }
 
     setUploading(true);
     setAnalyzing(true);
+    setUploadProgress('Preparing file...');
 
     try {
+      // Step 1: Convert to base64
+      setUploadProgress('Converting file...');
       const base64Data = await fileToBase64(file);
-      const analysis = await analyzeDocument(file, docType);
+      console.log('✅ Base64 conversion complete, length:', base64Data.length);
 
-      const doc = {
-        id: Date.now(),
+      // Step 2: AI Analysis (optional)
+      setUploadProgress('Analyzing document with AI...');
+      const analysis = await analyzeDocument(file, docType);
+      console.log('Analysis complete:', analysis);
+
+      // Step 3: Delete old document if exists
+      const existingDoc = documents.find(d => d.type === docType);
+      if (existingDoc && existingDoc.firestoreId) {
+        setUploadProgress('Removing old document...');
+        console.log('Deleting existing document:', existingDoc.firestoreId);
+        
+        const docRef = doc(db, 'documents', existingDoc.firestoreId);
+        await deleteDoc(docRef);
+        console.log('Old document deleted from Firestore');
+      }
+
+      // Step 4: Save to Firestore (with base64 data)
+      setUploadProgress('Saving document...');
+      const docData = {
         userId: user.uid,
         userName: user.displayName || user.email,
+        userEmail: user.email,
         type: docType,
-        typeName: DOCUMENT_TYPES.find(dt => dt.id === docType)?.label,
+        typeName: DOCUMENT_TYPES.find(dt => dt.id === docType)?.label || docType,
         name: file.name,
         size: file.size,
-        uploadedAt: new Date().toISOString(),
+        fileType: file.type,
+        fileData: base64Data, // Store base64 in Firestore
+        uploadedAt: serverTimestamp(),
         status: 'pending', // pending, approved, rejected
         aiAnalysis: analysis,
         doctorReview: null,
-        preview: `data:${file.type};base64,${base64Data}`,
-        fileData: base64Data,
-        fileType: file.type
+        createdAt: new Date().toISOString()
       };
 
-      const updatedDocs = [...documents, doc];
-      saveDocuments(updatedDocs);
+      console.log('Saving document data to Firestore...');
+      const documentsRef = collection(db, 'documents');
+      const newDocRef = await addDoc(documentsRef, docData);
+      console.log('✅ Document saved to Firestore with ID:', newDocRef.id);
 
+      setUploadProgress('Upload complete!');
       alert('Document uploaded successfully! Awaiting doctor verification.');
+      
+      // Reset file input
+      event.target.value = '';
+      
     } catch (error) {
       console.error('Upload error:', error);
-      alert('Failed to upload document. Please try again.');
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      
+      let errorMessage = 'Failed to upload document. ';
+      if (error.message.includes('Maximum call stack size exceeded')) {
+        errorMessage += 'File is too large for Firestore. Please use a smaller file or upgrade to Firebase Blaze plan.';
+      } else {
+        errorMessage += error.message || 'Please try again.';
+      }
+      
+      alert(errorMessage);
     } finally {
       setUploading(false);
       setAnalyzing(false);
+      setUploadProgress('');
     }
   };
 
-  const removeDocument = (docId) => {
-    const doc = documents.find(d => d.id === docId);
-    if (doc.status !== 'pending') {
+  const removeDocument = async (docId) => {
+    const document = documents.find(d => d.firestoreId === docId);
+    if (!document) {
+      console.error('Document not found');
+      return;
+    }
+
+    if (document.status !== 'pending') {
       alert('Cannot delete documents that have been reviewed by a doctor.');
       return;
     }
-    const updatedDocs = documents.filter(d => d.id !== docId);
-    saveDocuments(updatedDocs);
+
+    const confirmed = window.confirm('Are you sure you want to delete this document?');
+    if (!confirmed) return;
+
+    try {
+      console.log('Deleting document:', docId);
+      
+      const docRef = doc(db, 'documents', docId);
+      await deleteDoc(docRef);
+      console.log('✅ Document deleted from Firestore');
+      
+      alert('Document deleted successfully');
+    } catch (error) {
+      console.error('Error deleting document:', error);
+      alert('Failed to delete document. Please try again.');
+    }
+  };
+
+  const downloadDocument = (document) => {
+    try {
+      const link = window.document.createElement('a');
+      link.href = `data:${document.fileType};base64,${document.fileData}`;
+      link.download = document.name;
+      link.click();
+    } catch (error) {
+      console.error('Download error:', error);
+      alert('Failed to download document');
+    }
   };
 
   const getStatusBadge = (status) => {
     const configs = {
-      pending: { color: 'bg-yellow-100 text-yellow-800 border-yellow-200', icon: Clock, label: 'Pending Review' },
-      approved: { color: 'bg-green-100 text-green-800 border-green-200', icon: CheckCircle, label: 'Approved' },
-      rejected: { color: 'bg-red-100 text-red-800 border-red-200', icon: XCircle, label: 'Rejected' }
+      pending: { color: 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800', icon: Clock, label: 'Pending Review' },
+      approved: { color: 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800', icon: CheckCircle, label: 'Approved' },
+      rejected: { color: 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800', icon: XCircle, label: 'Rejected' }
     };
     
     const config = configs[status] || configs.pending;
@@ -200,6 +333,24 @@ Respond in JSON format:
         {config.label}
       </span>
     );
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
+  const formatDate = (timestamp) => {
+    if (!timestamp) return 'Just now';
+    try {
+      if (timestamp.toDate) {
+        return timestamp.toDate().toLocaleString();
+      }
+      return new Date(timestamp).toLocaleString();
+    } catch (error) {
+      return 'Recently';
+    }
   };
 
   const allRequiredUploaded = DOCUMENT_TYPES
@@ -229,12 +380,15 @@ Respond in JSON format:
               Document Upload
             </h1>
           </div>
-          <p className="text-lg text-gray-600 dark:text-gray-300 mb-4">
+          <p className="text-lg text-gray-600 dark:text-gray-300 mb-2">
             Upload your documents for doctor verification
+          </p>
+          <p className="text-sm text-yellow-600 dark:text-yellow-400">
+            File size limited to 500KB 
           </p>
 
           {/* Status Summary */}
-          <div className="flex justify-center gap-4 flex-wrap">
+          <div className="flex justify-center gap-4 flex-wrap mt-4">
             <div className="bg-yellow-50 dark:bg-yellow-900/20 px-4 py-2 rounded-lg border border-yellow-200 dark:border-yellow-800">
               <Clock size={20} className="inline mr-2 text-yellow-600" />
               <span className="font-semibold text-yellow-800 dark:text-yellow-300">{pendingCount} Pending</span>
@@ -272,7 +426,7 @@ Respond in JSON format:
                           {docType.required && <span className="text-red-500 ml-1">*</span>}
                         </h3>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                          JPG, PNG, or PDF • Max 10MB
+                          JPG, PNG, or PDF • Max 500KB
                         </p>
                       </div>
                     </div>
@@ -284,11 +438,18 @@ Respond in JSON format:
                     <div className="mt-3 space-y-2">
                       <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded-lg text-sm">
                         <p className="text-gray-700 dark:text-gray-300">
-                          <strong>File:</strong> {uploaded.name}
+                          <strong>File:</strong> {uploaded.name} ({formatFileSize(uploaded.size)})
                         </p>
                         <p className="text-gray-700 dark:text-gray-300">
-                          <strong>Uploaded:</strong> {new Date(uploaded.uploadedAt).toLocaleString()}
+                          <strong>Uploaded:</strong> {formatDate(uploaded.uploadedAt)}
                         </p>
+                        <button
+                          onClick={() => downloadDocument(uploaded)}
+                          className="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 mt-2"
+                        >
+                          <Eye size={14} />
+                          View/Download Document
+                        </button>
                         {uploaded.doctorReview && (
                           <>
                             <p className="text-gray-700 dark:text-gray-300 mt-2">
@@ -298,7 +459,7 @@ Respond in JSON format:
                               <strong>Reviewed by:</strong> {uploaded.doctorReview.doctorName}
                             </p>
                             <p className="text-gray-700 dark:text-gray-300">
-                              <strong>Reviewed on:</strong> {new Date(uploaded.doctorReview.reviewedAt).toLocaleString()}
+                              <strong>Reviewed on:</strong> {formatDate(uploaded.doctorReview.reviewedAt)}
                             </p>
                           </>
                         )}
@@ -306,7 +467,7 @@ Respond in JSON format:
 
                       {uploaded.status === 'pending' && (
                         <button
-                          onClick={() => removeDocument(uploaded.id)}
+                          onClick={() => removeDocument(uploaded.firestoreId)}
                           className="w-full bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-4 py-2 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors flex items-center justify-center gap-2"
                         >
                           <Trash2 size={16} />
@@ -369,7 +530,7 @@ Respond in JSON format:
                 <p className="text-green-700 dark:text-green-400 mb-4">
                   Your documents have been verified by our medical team. You can now proceed with registration.
                 </p>
-                <button className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 font-semibold">
+                <button className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 font-semibold transition-colors">
                   Complete Registration
                 </button>
               </div>
@@ -387,11 +548,19 @@ Respond in JSON format:
           </div>
         )}
 
+        {/* Upload Progress Modal */}
         {analyzing && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-2xl">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-2xl max-w-sm">
               <Loader2 className="animate-spin text-red-500 mx-auto mb-4" size={48} />
-              <p className="text-gray-900 dark:text-white font-semibold">Analyzing document...</p>
+              <p className="text-gray-900 dark:text-white font-semibold text-center mb-2">
+                Processing...
+              </p>
+              {uploadProgress && (
+                <p className="text-gray-600 dark:text-gray-400 text-sm text-center">
+                  {uploadProgress}
+                </p>
+              )}
             </div>
           </div>
         )}
