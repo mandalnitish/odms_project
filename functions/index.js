@@ -78,5 +78,26 @@ app.get("/users", async (req, res) => {
   }
 });
 
+
+const { onSchedule } = require("firebase-functions/v2/scheduler");
+const admin = require("firebase-admin");
+
+exports.simulateOrganTransport = onSchedule("every 2 minutes", async () => {
+  const db = admin.firestore();
+  const snapshot = await db.collection('organTransfers')
+    .where('status', '==', 'in_transit').get();
+
+  snapshot.forEach(async (doc) => {
+    const data = doc.data();
+    const { vehicleLocation, recipientLocation } = data;
+
+    // Move vehicle 10% closer to destination each tick
+    const newLat = vehicleLocation.lat + (recipientLocation.lat - vehicleLocation.lat) * 0.1;
+    const newLng = vehicleLocation.lng + (recipientLocation.lng - vehicleLocation.lng) * 0.1;
+
+    await doc.ref.update({ vehicleLocation: { lat: newLat, lng: newLng } });
+  });
+});
+
 // Export a single entrypoint
 exports.api = functions.https.onRequest(app);

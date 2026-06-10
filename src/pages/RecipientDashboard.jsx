@@ -1,6 +1,8 @@
 // src/pages/RecipientDashboard.jsx
 import React, { useEffect, useState } from "react";
 import { db, auth } from "../firebase";
+import TrackingPage from './TrackingPage';
+
 import {
   collection,
   query,
@@ -546,7 +548,8 @@ useEffect(() => {
         <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-2 mb-6 inline-flex gap-2 shadow-lg border border-white/20">
           {[
             { id: "overview", label: "Overview", icon: "📊" },
-            { id: "matches", label: "My Matches", icon: "🔗" }
+            { id: "matches", label: "My Matches", icon: "🔗" },
+            { id: "tracking",  label: "Live Tracking", icon: "🗺️" },
           ].map(tab => (
             <button
               key={tab.id}
@@ -704,6 +707,12 @@ useEffect(() => {
               </div>
             </div>
           )}
+
+          {activeTab === "tracking" && (
+  <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-white/20">
+    <TrackingPage />
+  </div>
+)}
         </div>
       </div>
     </div>

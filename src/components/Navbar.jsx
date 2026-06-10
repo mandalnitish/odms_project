@@ -1,5 +1,6 @@
 // src/components/Navbar.jsx
-import { Link, useLocation } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
+
 
 export default function Navbar() {
   const location = useLocation();
@@ -26,6 +27,19 @@ export default function Navbar() {
           Signup
         </Link>
       </div>
+      // Inside the nav links div, add:
+<NavLink
+  to="/tracking"
+  className={({ isActive }) =>
+    `px-4 py-2 rounded transition-colors ${
+      isActive
+        ? "bg-green-700 text-white"
+        : "text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900"
+    }`
+  }
+>
+  🗺️ Live Tracking
+</NavLink>
     </nav>
   );
 }

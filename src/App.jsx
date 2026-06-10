@@ -42,6 +42,9 @@ import logo from "./assets/logo.png";
 import ScrollToTop from "./components/ScrollToTop";
 import ScrollToTopButton from "./components/ScrollToTopButton";
 
+import OrganTrackingMap from './components/OrganTrackingMap';
+import TrackingPage from './pages/TrackingPage';
+
 // --------------------------------------------
 // MAIN APP WRAPPER
 // --------------------------------------------
@@ -348,6 +351,8 @@ function AnimatedRoutes() {
             </PrivateRoute>
           }
         />
+         // Inside your routes:
+        <Route path="/tracking" element={<TrackingPage />} />
 
         {/* Hospitals */}
         <Route

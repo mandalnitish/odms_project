@@ -1,6 +1,7 @@
 // src/pages/AdminDashboard.jsx
 import React, { useState, useEffect } from "react";
 import { db } from "../firebase";
+import TrackingPage from './TrackingPage';
 
 import {
   collection,
@@ -132,7 +133,6 @@ function BloodGroupChart({ users }) {
   );
 }
 
-/** ✅ Organ types merged case-insensitively (Heart/heart → Heart) */
 function OrganTypeChart({ users }) {
   const organs = users.reduce((acc, u) => {
     if (!u.organType) return acc;
@@ -240,7 +240,6 @@ function RecentActivity({ users }) {
   );
 }
 
-/** 🏥 Hospitals overview panel in Overview tab */
 function HospitalsOverview({ hospitals, loading }) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg flex flex-col h-full">
@@ -249,8 +248,6 @@ function HospitalsOverview({ hospitals, loading }) {
           <Building2 className="w-5 h-5 text-indigo-500" />
           <h3 className="text-lg font-semibold">Hospitals Overview</h3>
         </div>
-
-        {/* 🔗 Use Link instead of navigate() */}
         <Link
           to="/hospitals"
           className="text-xs px-3 py-1 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors flex items-center gap-1"
@@ -260,8 +257,7 @@ function HospitalsOverview({ hospitals, loading }) {
       </div>
 
       <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-        {hospitals.length} hospital{hospitals.length === 1 ? "" : "s"} in
-        system
+        {hospitals.length} hospital{hospitals.length === 1 ? "" : "s"} in system
       </p>
 
       {loading ? (
@@ -340,7 +336,7 @@ export default function AdminDashboard() {
   const [editData, setEditData] = useState({});
   const [viewMode, setViewMode] = useState("overview");
 
-  // 👥 Real-time users
+  // Real-time users
   useEffect(() => {
     setLoading(true);
     const qUsers = query(collection(db, "users"), orderBy("fullName"));
@@ -358,7 +354,7 @@ export default function AdminDashboard() {
     return () => unsub();
   }, []);
 
-  // 🏥 Real-time hospitals for overview
+  // Real-time hospitals
   useEffect(() => {
     setHospitalsLoading(true);
     const qHosp = query(collection(db, "hospitals"), orderBy("name"));
@@ -396,16 +392,8 @@ export default function AdminDashboard() {
 
   const filteredUsers = users.filter((u) => {
     if (filterRole && u.role !== filterRole) return false;
-    if (
-      filterBlood &&
-      u.bloodGroup?.toLowerCase() !== filterBlood.toLowerCase()
-    )
-      return false;
-    if (
-      searchName &&
-      !u.fullName?.toLowerCase().includes(searchName.toLowerCase())
-    )
-      return false;
+    if (filterBlood && u.bloodGroup?.toLowerCase() !== filterBlood.toLowerCase()) return false;
+    if (searchName && !u.fullName?.toLowerCase().includes(searchName.toLowerCase())) return false;
     return true;
   });
 
@@ -424,12 +412,10 @@ export default function AdminDashboard() {
       u.organType || "—",
       u.mobile || "—",
     ]);
-
     const csvContent = [
       headers.join(","),
       ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
     ].join("\n");
-
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -440,23 +426,19 @@ export default function AdminDashboard() {
   };
 
   const exportToPDF = (list) => {
-    const doc = new jsPDF();
-
-    doc.setFontSize(20);
-    doc.setTextColor(59, 130, 246);
-    doc.text("User Management Report", 14, 20);
-
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
-
-    doc.setFontSize(12);
-    doc.setTextColor(0);
-    doc.text(`Total Users: ${list.length}`, 14, 38);
-    doc.text(`Donors: ${roleCounts.donor || 0}`, 14, 45);
-    doc.text(`Recipients: ${roleCounts.recipient || 0}`, 14, 52);
-    doc.text(`Doctors: ${roleCounts.doctor || 0}`, 14, 59);
-
+    const pdfdoc = new jsPDF();
+    pdfdoc.setFontSize(20);
+    pdfdoc.setTextColor(59, 130, 246);
+    pdfdoc.text("User Management Report", 14, 20);
+    pdfdoc.setFontSize(10);
+    pdfdoc.setTextColor(100);
+    pdfdoc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
+    pdfdoc.setFontSize(12);
+    pdfdoc.setTextColor(0);
+    pdfdoc.text(`Total Users: ${list.length}`, 14, 38);
+    pdfdoc.text(`Donors: ${roleCounts.donor || 0}`, 14, 45);
+    pdfdoc.text(`Recipients: ${roleCounts.recipient || 0}`, 14, 52);
+    pdfdoc.text(`Doctors: ${roleCounts.doctor || 0}`, 14, 59);
     const tableData = list.map((u) => [
       u.fullName || "—",
       u.email || "—",
@@ -465,49 +447,32 @@ export default function AdminDashboard() {
       u.organType || "—",
       u.mobile || "—",
     ]);
-
-    doc.autoTable({
+    pdfdoc.autoTable({
       head: [["Name", "Email", "Role", "Blood Group", "Organ", "Mobile"]],
       body: tableData,
       startY: 68,
       theme: "grid",
-      headStyles: {
-        fillColor: [59, 130, 246],
-        textColor: 255,
-        fontStyle: "bold",
-        halign: "center",
-      },
-      styles: {
-        fontSize: 9,
-        cellPadding: 3,
-      },
-      alternateRowStyles: {
-        fillColor: [245, 245, 245],
-      },
+      headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: "bold", halign: "center" },
+      styles: { fontSize: 9, cellPadding: 3 },
+      alternateRowStyles: { fillColor: [245, 245, 245] },
       columnStyles: {
-        0: { cellWidth: 35 },
-        1: { cellWidth: 45 },
-        2: { cellWidth: 25 },
-        3: { cellWidth: 25 },
-        4: { cellWidth: 25 },
-        5: { cellWidth: 30 },
+        0: { cellWidth: 35 }, 1: { cellWidth: 45 }, 2: { cellWidth: 25 },
+        3: { cellWidth: 25 }, 4: { cellWidth: 25 }, 5: { cellWidth: 30 },
       },
     });
-
-    const pageCount = doc.internal.getNumberOfPages();
+    const pageCount = pdfdoc.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-      doc.setFontSize(8);
-      doc.setTextColor(128);
-      doc.text(
+      pdfdoc.setPage(i);
+      pdfdoc.setFontSize(8);
+      pdfdoc.setTextColor(128);
+      pdfdoc.text(
         `Page ${i} of ${pageCount}`,
-        doc.internal.pageSize.width / 2,
-        doc.internal.pageSize.height - 10,
+        pdfdoc.internal.pageSize.width / 2,
+        pdfdoc.internal.pageSize.height - 10,
         { align: "center" }
       );
     }
-
-    doc.save(`users_report_${new Date().toISOString().split("T")[0]}.pdf`);
+    pdfdoc.save(`users_report_${new Date().toISOString().split("T")[0]}.pdf`);
   };
 
   const startEditing = (user) => {
@@ -556,6 +521,7 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 dark:text-white">
       <div className="max-w-7xl mx-auto p-6">
+
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
@@ -566,7 +532,7 @@ export default function AdminDashboard() {
           </p>
         </div>
 
-        {/* View Toggle */}
+        {/* ── View Toggle ── */}
         <div className="flex gap-2 mb-6 bg-white dark:bg-gray-800 p-1 rounded-lg w-fit shadow-md">
           <button
             onClick={() => setViewMode("overview")}
@@ -588,8 +554,19 @@ export default function AdminDashboard() {
           >
             User Table
           </button>
+          <button
+            onClick={() => setViewMode("tracking")}
+            className={`px-6 py-2 rounded-md transition-all font-medium ${
+              viewMode === "tracking"
+                ? "bg-blue-600 text-white shadow-lg"
+                : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+            }`}
+          >
+            🗺️ Live Tracking
+          </button>
         </div>
 
+        {/* ── Content: 3-way switch ── */}
         {viewMode === "overview" ? (
           <>
             {/* Stats Cards */}
@@ -627,16 +604,19 @@ export default function AdminDashboard() {
                 <BloodGroupChart users={users} />
                 <OrganTypeChart users={users} />
               </div>
-              <HospitalsOverview
-                hospitals={hospitals}
-                loading={hospitalsLoading}
-              />
+              <HospitalsOverview hospitals={hospitals} loading={hospitalsLoading} />
             </div>
 
             {/* Recent Activity */}
             <RecentActivity users={users} />
           </>
+
+        ) : viewMode === "tracking" ? (
+          // ── Live Tracking View ──
+          <TrackingPage />
+
         ) : (
+          // ── User Table View ──
           <>
             {/* Filters */}
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg mb-6">
@@ -668,20 +648,12 @@ export default function AdminDashboard() {
                   className="px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white cursor-pointer focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">All Blood Groups</option>
-                  {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(
-                    (b) => (
-                      <option key={b} value={b}>
-                        {b}
-                      </option>
-                    )
-                  )}
+                  {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((b) => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
                 </select>
                 <button
-                  onClick={() => {
-                    setSearchName("");
-                    setFilterRole("");
-                    setFilterBlood("");
-                  }}
+                  onClick={() => { setSearchName(""); setFilterRole(""); setFilterBlood(""); }}
                   className="px-4 py-3 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors flex items-center gap-2"
                 >
                   <Filter className="w-4 h-4" />
@@ -712,15 +684,7 @@ export default function AdminDashboard() {
                 <table className="min-w-full">
                   <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
-                      {[
-                        "Name",
-                        "Email",
-                        "Role",
-                        "Blood Group",
-                        "Organ",
-                        "Mobile",
-                        "Actions",
-                      ].map((col) => (
+                      {["Name", "Email", "Role", "Blood Group", "Organ", "Mobile", "Actions"].map((col) => (
                         <th
                           key={col}
                           className="px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider"
@@ -733,30 +697,19 @@ export default function AdminDashboard() {
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                     {filteredUsers.length === 0 && (
                       <tr>
-                        <td
-                          colSpan={7}
-                          className="px-6 py-12 text-center text-gray-500 dark:text-gray-400"
-                        >
+                        <td colSpan={7} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                           No users found
                         </td>
                       </tr>
                     )}
                     {filteredUsers.map((u) => (
-                      <tr
-                        key={u.id}
-                        className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                      >
+                      <tr key={u.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">
                           {editId === u.id ? (
                             <input
                               type="text"
                               value={editData.fullName}
-                              onChange={(e) =>
-                                setEditData({
-                                  ...editData,
-                                  fullName: e.target.value,
-                                })
-                              }
+                              onChange={(e) => setEditData({ ...editData, fullName: e.target.value })}
                               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-600 dark:text-white"
                             />
                           ) : (
@@ -764,9 +717,7 @@ export default function AdminDashboard() {
                               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold mr-3">
                                 {u.fullName?.charAt(0) || "U"}
                               </div>
-                              <span className="font-medium">
-                                {u.fullName || "—"}
-                              </span>
+                              <span className="font-medium">{u.fullName || "—"}</span>
                             </div>
                           )}
                         </td>
@@ -774,17 +725,12 @@ export default function AdminDashboard() {
                           {u.email || "—"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                              u.role === "donor"
-                                ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-                                : u.role === "recipient"
-                                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                                : u.role === "doctor"
-                                ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
-                                : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-                            }`}
-                          >
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                            u.role === "donor" ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+                            : u.role === "recipient" ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+                            : u.role === "doctor" ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
+                            : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                          }`}>
                             {u.role}
                           </span>
                         </td>
@@ -792,28 +738,12 @@ export default function AdminDashboard() {
                           {editId === u.id ? (
                             <select
                               value={editData.bloodGroup}
-                              onChange={(e) =>
-                                setEditData({
-                                  ...editData,
-                                  bloodGroup: e.target.value,
-                                })
-                              }
+                              onChange={(e) => setEditData({ ...editData, bloodGroup: e.target.value })}
                               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-600 dark:text-white"
                             >
                               <option value="">Select</option>
-                              {[
-                                "A+",
-                                "A-",
-                                "B+",
-                                "B-",
-                                "AB+",
-                                "AB-",
-                                "O+",
-                                "O-",
-                              ].map((b) => (
-                                <option key={b} value={b}>
-                                  {b}
-                                </option>
+                              {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map((b) => (
+                                <option key={b} value={b}>{b}</option>
                               ))}
                             </select>
                           ) : (
@@ -827,18 +757,11 @@ export default function AdminDashboard() {
                             <input
                               type="text"
                               value={editData.organType}
-                              onChange={(e) =>
-                                setEditData({
-                                  ...editData,
-                                  organType: e.target.value,
-                                })
-                              }
+                              onChange={(e) => setEditData({ ...editData, organType: e.target.value })}
                               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-600 dark:text-white"
                             />
                           ) : (
-                            <span className="capitalize">
-                              {u.organType || "—"}
-                            </span>
+                            <span className="capitalize">{u.organType || "—"}</span>
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -846,12 +769,7 @@ export default function AdminDashboard() {
                             <input
                               type="text"
                               value={editData.mobile}
-                              onChange={(e) =>
-                                setEditData({
-                                  ...editData,
-                                  mobile: e.target.value,
-                                })
-                              }
+                              onChange={(e) => setEditData({ ...editData, mobile: e.target.value })}
                               className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-600 dark:text-white"
                             />
                           ) : (
@@ -905,6 +823,7 @@ export default function AdminDashboard() {
             </div>
           </>
         )}
+
       </div>
     </div>
   );

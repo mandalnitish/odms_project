@@ -16,6 +16,7 @@ import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
 import DoctorReviewDashboard from "../components/DoctorReviewDashboard.jsx";
+import TrackingPage from './TrackingPage';
 
 function Spinner() {
   return (
@@ -303,62 +304,76 @@ function TrackingModal({ match, onClose, onSave, hospitals, doctors }) {
                 />
               </div>
 
-              {/* Department */}
-              <div>
-                <label className="block text-sm font-semibold mb-2">
-                  Department
-                </label>
-                <select
-                  value={trackingData.department}
-                  onChange={(e) =>
-                    setTrackingData((prev) => ({
-                      ...prev,
-                      department: e.target.value,
-                    }))
-                  }
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all"
-                >
-                  <option value="">Select Department</option>
-                  {hospitalDepartments.map((dName, idx) => (
-                    <option key={idx} value={dName}>
-                      {dName}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* Department - FIXED */}
+<div>
+  <label className="block text-sm font-semibold mb-2">
+    Department
+  </label>
+  <select
+    value={trackingData.department}
+    onChange={(e) =>
+      setTrackingData((prev) => ({
+        ...prev,
+        department: e.target.value,
+      }))
+    }
+    disabled={!trackingData.hospitalId || hospitalDepartments.length === 0}
+    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+  >
+    <option value="">
+      {!trackingData.hospitalId 
+        ? "Select a hospital first" 
+        : hospitalDepartments.length === 0 
+        ? "No departments available" 
+        : "Select Department"}
+    </option>
+    {hospitalDepartments.map((dName, idx) => (
+      <option key={idx} value={dName}>
+        {dName}
+      </option>
+    ))}
+  </select>
+</div>
 
               {/* Surgeon */}
-              <div>
-                <label className="block text-sm font-semibold mb-2">
-                  Surgeon / Team Lead
-                </label>
-                <select
-                  value={trackingData.surgeonId}
-                  onChange={(e) => handleSurgeonChange(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all mb-2"
-                >
-                  <option value="">Select Surgeon</option>
-                  {hospitalDoctors.map((doc) => (
-                    <option key={doc.id} value={doc.id}>
-                      {doc.fullName}{" "}
-                      {doc.specialization ? `(${doc.specialization})` : ""}
-                    </option>
-                  ))}
-                </select>
-                <input
-                  type="text"
-                  value={trackingData.surgeon}
-                  onChange={(e) =>
-                    setTrackingData((prev) => ({
-                      ...prev,
-                      surgeon: e.target.value,
-                      surgeonId: "",
-                    }))
-                  }
-                  placeholder="Or type surgeon name manually"
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all"
-                />
-              </div>
+<div>
+  <label className="block text-sm font-semibold mb-2">
+    Surgeon / Team Lead
+  </label>
+  <select
+    value={trackingData.surgeonId}
+    onChange={(e) => handleSurgeonChange(e.target.value)}
+    disabled={!trackingData.hospitalId || hospitalDoctors.length === 0}
+    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all mb-2 disabled:opacity-50 disabled:cursor-not-allowed"
+  >
+    <option value="">
+      {!trackingData.hospitalId 
+        ? "Select a hospital first" 
+        : hospitalDoctors.length === 0 
+        ? "No surgeons available at this hospital" 
+        : "Select Surgeon"}
+    </option>
+    {hospitalDoctors.map((doc) => (
+      <option key={doc.id} value={doc.id}>
+        {doc.fullName}{" "}
+        {doc.specialization ? `(${doc.specialization})` : ""}
+      </option>
+    ))}
+  </select>
+  <input
+    type="text"
+    value={trackingData.surgeon}
+    onChange={(e) =>
+      setTrackingData((prev) => ({
+        ...prev,
+        surgeon: e.target.value,
+        surgeonId: "",
+      }))
+    }
+    placeholder="Or type surgeon name manually"
+    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all"
+  />
+</div>
 
               {/* Duration */}
               <div>
@@ -850,69 +865,69 @@ export default function DoctorDashboard() {
           </div>
         </header>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
-          {[
-            {
-              label: "Total Donors",
-              value: donors.length,
-              icon: "👥",
-              gradient: "from-blue-500 to-blue-600",
-            },
-            {
-              label: "Recipients",
-              value: recipients.length,
-              icon: "🏥",
-              gradient: "from-purple-500 to-purple-600",
-            },
-            {
-              label: "Active Matches",
-              value: uniqueMatches.length,
-              icon: "🔗",
-              gradient: "from-green-500 to-green-600",
-            },
-            {
-              label: "Completed",
-              value: uniqueMatches.filter(
-                (m) => m.trackingStatus === "Completed"
-              ).length,
-              icon: "✅",
-              gradient: "from-emerald-500 to-emerald-600",
-            },
-            {
-              label: "Hospitals",
-              value: hospitals.filter(
-                (h) => !h.status || h.status === "Active"
-              ).length,
-              icon: "🏢",
-              gradient: "from-orange-500 to-red-600",
-            },
-          ].map((stat, index) => (
-            <div
-              key={stat.label}
-              className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-white/20 hover:scale-105 transition-transform"
-              style={{ animationDelay: `${index * 0.1}s` }}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <div
-                  className={`w-14 h-14 bg-gradient-to-br ${stat.gradient} rounded-xl flex items-center justify-center text-2xl shadow-lg`}
-                >
-                  {stat.icon}
-                </div>
-                <div className="text-right">
-                  <p
-                    className={`text-3xl font-bold bg-gradient-to-r ${stat.gradient} bg-clip-text text-transparent`}
-                  >
-                    {stat.value}
-                  </p>
-                </div>
-              </div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                {stat.label}
-              </p>
-            </div>
-          ))}
+{/* Stats Cards */}
+<div className="grid grid-cols-5 gap-2 mb-6">
+  {[
+    {
+      label: "Total Donors",
+      value: donors.length,
+      icon: "👥",
+      gradient: "from-blue-500 to-blue-600",
+      bg: "from-blue-500/20 to-blue-600/10",
+    },
+    {
+      label: "Recipients",
+      value: recipients.length,
+      icon: "🏥",
+      gradient: "from-purple-500 to-purple-600",
+      bg: "from-purple-500/20 to-purple-600/10",
+    },
+    {
+      label: "Active Matches",
+      value: uniqueMatches.length,
+      icon: "🔗",
+      gradient: "from-green-500 to-green-600",
+      bg: "from-green-500/20 to-green-600/10",
+    },
+    {
+      label: "Completed",
+      value: uniqueMatches.filter((m) => m.trackingStatus === "Completed").length,
+      icon: "✅",
+      gradient: "from-emerald-500 to-emerald-600",
+      bg: "from-emerald-500/20 to-emerald-600/10",
+    },
+    {
+      label: "Hospitals",
+      value: hospitals.filter((h) => !h.status || h.status === "Active").length,
+      icon: "🏢",
+      gradient: "from-orange-500 to-red-600",
+      bg: "from-orange-500/20 to-red-600/10",
+    },
+  ].map((stat) => (
+    <div
+      key={stat.label}
+      className={`bg-gradient-to-br ${stat.bg} backdrop-blur-xl rounded-xl p-3 shadow-lg border border-white/10 hover:scale-105 transition-transform cursor-default`}
+    >
+      <div className="flex items-center gap-2">
+        <div
+          className={`w-9 h-9 bg-gradient-to-br ${stat.gradient} rounded-lg flex items-center justify-center text-sm shadow-lg flex-shrink-0`}
+        >
+          {stat.icon}
         </div>
+        <div className="min-w-0 flex-1">
+          <p
+            className={`text-xl font-bold bg-gradient-to-r ${stat.gradient} bg-clip-text text-transparent leading-none`}
+          >
+            {stat.value}
+          </p>
+          <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 mt-0.5 leading-tight">
+            {stat.label}
+          </p>
+        </div>
+      </div>
+    </div>
+  ))}
+</div>
 
         {/* Filters */}
         <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 mb-6 shadow-lg border border-white/20">
@@ -989,31 +1004,32 @@ export default function DoctorDashboard() {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-2 mb-6 inline-flex gap-2 shadow-lg border border-white/20">
-          {[
-            { id: "overview", label: "Overview", icon: "📊" },
-            { id: "donors", label: "Donors", icon: "👥" },
-            { id: "recipients", label: "Recipients", icon: "🏥" },
-            { id: "matches", label: "Matches", icon: "🔗" },
-            { id: "documents", label: "Document Review", icon: "📄" }, 
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-6 py-3 rounded-xl transition-all font-medium ${
-                activeTab === tab.id
-                  ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg"
-                  : "hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                <span>{tab.icon}</span>
-                <span>{tab.label}</span>
-              </span>
-            </button>
-          ))}
-        </div>
+   {/* Tabs */}
+<div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-2 mb-6 flex gap-1 shadow-lg border border-white/20 w-full">
+  {[
+    { id: "overview", label: "Overview", icon: "📊" },
+    { id: "donors", label: "Donors", icon: "👥" },
+    { id: "recipients", label: "Recipients", icon: "🏥" },
+    { id: "matches", label: "Matches", icon: "🔗" },
+    { id: "documents", label: "Document Review", icon: "📄" },
+    { id: "tracking",   label: "Live Tracking",      icon: "🗺️" },
+  ].map((tab) => (
+    <button
+      key={tab.id}
+      onClick={() => setActiveTab(tab.id)}
+      className={`flex-1 px-3 py-3 rounded-xl transition-all font-medium text-sm whitespace-nowrap ${
+        activeTab === tab.id
+          ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg"
+          : "hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
+      }`}
+    >
+      <span className="flex items-center justify-center gap-2">
+        <span>{tab.icon}</span>
+        <span>{tab.label}</span>
+      </span>
+    </button>
+  ))}
+</div>
 
         {/* Tab Content */}
         <div className="mt-6">
@@ -1543,6 +1559,12 @@ export default function DoctorDashboard() {
       />
     </div>
   )}
+
+  {activeTab === "tracking" && (
+  <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-white/20">
+    <TrackingPage />
+  </div>
+)}
 
 </div> {/* END of Tab Content */}
 </div>
