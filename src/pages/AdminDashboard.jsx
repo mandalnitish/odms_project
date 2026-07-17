@@ -3,6 +3,8 @@ import React, { useState, useEffect } from "react";
 import { db } from "../firebase";
 import TrackingPage from './TrackingPage';
 
+import PoliceVerificationAdmin from '../components/PoliceVerificationAdmin';
+
 import {
   collection,
   query,
@@ -564,6 +566,16 @@ export default function AdminDashboard() {
           >
             🗺️ Live Tracking
           </button>
+          <button
+            onClick={() => setViewMode("police")}
+            className={`px-6 py-2 rounded-md transition-all font-medium ${
+              viewMode === "police"
+                ? "bg-blue-600 text-white shadow-lg"
+                : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+            }`}
+          >
+            🚔 Police Verification
+          </button>
         </div>
 
         {/* ── Content: 3-way switch ── */}
@@ -614,7 +626,8 @@ export default function AdminDashboard() {
         ) : viewMode === "tracking" ? (
           // ── Live Tracking View ──
           <TrackingPage />
-
+        ) : viewMode === "police" ? (
+          <PoliceVerificationAdmin />
         ) : (
           // ── User Table View ──
           <>

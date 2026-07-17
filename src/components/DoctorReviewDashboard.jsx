@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, Eye, FileText, Clock, Shield, AlertTriangle, User, Calendar, Download } from 'lucide-react';
+import { CheckCircle, XCircle, Eye, FileText, Shield, AlertTriangle, User, Calendar, Download } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase';
 import { collection, query, onSnapshot, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -136,46 +136,6 @@ const DoctorReviewDashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-8 px-4">
       <div className="max-w-7xl mx-auto">
-        
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <Shield className="text-blue-500" size={40} />
-            <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
-              Document Review Dashboard
-            </h1>
-          </div>
-          <p className="text-lg text-gray-600 dark:text-gray-300">
-            Review and verify donor/recipient documents
-          </p>
-        </div>
-
-        {/* Statistics */}
-        <div className="grid md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
-            <FileText className="text-blue-500 mb-3" size={32} />
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white">{allDocuments.length}</h3>
-            <p className="text-gray-600 dark:text-gray-400">Total Documents</p>
-          </div>
-
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-xl p-6 shadow-lg border border-yellow-200 dark:border-yellow-800">
-            <Clock className="text-yellow-600 mb-3" size={32} />
-            <h3 className="text-2xl font-bold text-yellow-800 dark:text-yellow-300">{pendingCount}</h3>
-            <p className="text-yellow-700 dark:text-yellow-400">Pending Review</p>
-          </div>
-
-          <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-6 shadow-lg border border-green-200 dark:border-green-800">
-            <CheckCircle className="text-green-600 mb-3" size={32} />
-            <h3 className="text-2xl font-bold text-green-800 dark:text-green-300">{approvedCount}</h3>
-            <p className="text-green-700 dark:text-green-400">Approved</p>
-          </div>
-
-          <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-6 shadow-lg border border-red-200 dark:border-red-800">
-            <XCircle className="text-red-600 mb-3" size={32} />
-            <h3 className="text-2xl font-bold text-red-800 dark:text-red-300">{rejectedCount}</h3>
-            <p className="text-red-700 dark:text-red-400">Rejected</p>
-          </div>
-        </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
           

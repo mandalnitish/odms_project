@@ -10,6 +10,7 @@ import {
   doc,
   updateDoc,
   addDoc,
+  setDoc,
   where,
 } from "firebase/firestore";
 import * as XLSX from "xlsx";
@@ -17,6 +18,42 @@ import { jsPDF } from "jspdf";
 import "jspdf-autotable";
 import DoctorReviewDashboard from "../components/DoctorReviewDashboard.jsx";
 import TrackingPage from './TrackingPage';
+import PoliceVerificationAdmin from '../components/PoliceVerificationAdmin'; 
+
+
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+let trackingGoogleMapsPromise = null;
+
+function loadTrackingGoogleMaps() {
+  if (window.google?.maps?.importLibrary) return Promise.resolve(window.google);
+  if (trackingGoogleMapsPromise) return trackingGoogleMapsPromise;
+
+  trackingGoogleMapsPromise = new Promise((resolve, reject) => {
+    if (!GOOGLE_MAPS_API_KEY) {
+      reject(new Error("VITE_GOOGLE_MAPS_API_KEY is missing from .env"));
+      return;
+    }
+
+    const callback = "__trackingGoogleMapsReady";
+    window[callback] = () => {
+      delete window[callback];
+      resolve(window.google);
+    };
+
+    const script = document.createElement("script");
+    script.dataset.trackingGoogleMaps = "true";
+    script.async = true;
+    script.defer = true;
+    script.src =
+      `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
+        GOOGLE_MAPS_API_KEY
+      )}&loading=async&libraries=places&callback=${callback}`;
+    script.onerror = () => reject(new Error("Google Maps script failed to load."));
+    document.head.appendChild(script);
+  });
+
+  return trackingGoogleMapsPromise;
+}
 
 function Spinner() {
   return (
@@ -83,8 +120,20 @@ function StatusBadge({ status }) {
   );
 }
 
-// ---------------- Tracking Modal ----------------
+// ---------------- Modern Tracking Modal ----------------
 function TrackingModal({ match, onClose, onSave, hospitals, doctors }) {
+  const [locating, setLocating] = useState(false);
+  const [dynamicDepartments, setDynamicDepartments] = useState([]);
+  const [dynamicDoctors, setDynamicDoctors] = useState([]);
+  const [medicalTeamLoading, setMedicalTeamLoading] = useState(false);
+  const [medicalTeamError, setMedicalTeamError] = useState("");
+  const [pickupSearch, setPickupSearch] = useState("");
+  const [destinationSearch, setDestinationSearch] = useState("");
+  const [locationSearchLoading, setLocationSearchLoading] = useState("");
+  const [locationSearchError, setLocationSearchError] = useState("");
+  const [pickupSuggestions, setPickupSuggestions] = useState([]);
+  const [destinationSuggestions, setDestinationSuggestions] = useState([]);
+
   const [trackingData, setTrackingData] = useState({
     trackingStatus: match.trackingStatus || "",
     scheduledDate: match.scheduledDate || "",
@@ -97,6 +146,9 @@ function TrackingModal({ match, onClose, onSave, hospitals, doctors }) {
     estimatedDuration: match.estimatedDuration || "",
     notes: match.notes || "",
     timeline: match.timeline || [],
+    donorLocation: match.donorLocation || { lat: "", lng: "", address: "" },
+    recipientLocation: match.recipientLocation || { lat: "", lng: "", address: "" },
+    vehicleLocation: match.vehicleLocation || null,
   });
 
   const trackingStatuses = [
@@ -108,52 +160,167 @@ function TrackingModal({ match, onClose, onSave, hospitals, doctors }) {
     "Cancelled",
   ];
 
-  const selectedHospital = hospitals.find(
-    (h) => h.id === trackingData.hospitalId
-  );
+  const selectedHospital = hospitals.find((h) => h.id === trackingData.hospitalId);
 
-  const hospitalDoctors = doctors.filter(
+  // Prefer dynamically fetched Firestore data. Fall back to data already loaded
+  // by the dashboard so older hospital records continue to work.
+  const fallbackDoctors = doctors.filter(
     (d) => d.hospitalId === trackingData.hospitalId
   );
 
+  const hospitalDoctors =
+    dynamicDoctors.length > 0 ? dynamicDoctors : fallbackDoctors;
+
+  const documentDepartments =
+    selectedHospital && Array.isArray(selectedHospital.departments)
+      ? selectedHospital.departments
+      : [];
+
   const hospitalDepartments =
-    (selectedHospital && selectedHospital.departments) || [];
+    dynamicDepartments.length > 0
+      ? dynamicDepartments
+      : documentDepartments;
+
+  // Dynamically load medical-team data whenever the selected hospital changes.
+  // Supports BOTH:
+  //   hospitals/{hospitalId}.departments (array field)
+  //   hospitals/{hospitalId}/departments/{departmentId} (subcollection)
+  // Doctors are loaded from:
+  //   hospitals/{hospitalId}/doctors/{doctorId}
+  useEffect(() => {
+    let active = true;
+
+    async function loadMedicalTeam() {
+      const hospitalId = trackingData.hospitalId;
+
+      if (!hospitalId) {
+        setDynamicDepartments([]);
+        setDynamicDoctors([]);
+        setMedicalTeamError("");
+        return;
+      }
+
+      setMedicalTeamLoading(true);
+      setMedicalTeamError("");
+
+      try {
+        const hospital = hospitals.find((h) => h.id === hospitalId);
+
+        const departmentNames = new Set(
+          Array.isArray(hospital?.departments)
+            ? hospital.departments.filter(Boolean)
+            : []
+        );
+
+        // Load department subcollection if it exists.
+        try {
+          const departmentSnapshot = await getDocs(
+            collection(db, "hospitals", hospitalId, "departments")
+          );
+
+          departmentSnapshot.docs.forEach((departmentDoc) => {
+            const data = departmentDoc.data() || {};
+            const name =
+              data.name ||
+              data.departmentName ||
+              data.title ||
+              data.specialization ||
+              "";
+
+            if (name) departmentNames.add(name);
+          });
+        } catch (departmentError) {
+          console.warn(
+            `Could not load departments for hospital ${hospitalId}:`,
+            departmentError
+          );
+        }
+
+        // Load doctors directly from the selected hospital.
+        const doctorsSnapshot = await getDocs(
+          collection(db, "hospitals", hospitalId, "doctors")
+        );
+
+        const loadedDoctors = doctorsSnapshot.docs.map((doctorDoc) => {
+          const data = doctorDoc.data() || {};
+
+          return {
+            id: doctorDoc.id,
+            ...data,
+            hospitalId,
+            fullName:
+              data.fullName ||
+              data.name ||
+              data.doctorName ||
+              "",
+            specialization:
+              data.specialization ||
+              data.speciality ||
+              data.department ||
+              "",
+          };
+        });
+
+        // If departments were not configured separately, derive them from
+        // doctors' department/specialization fields.
+        loadedDoctors.forEach((doctor) => {
+          const department =
+            doctor.department ||
+            doctor.specialization ||
+            doctor.speciality ||
+            "";
+
+          if (department) departmentNames.add(department);
+        });
+
+        if (!active) return;
+
+        setDynamicDepartments(Array.from(departmentNames));
+        setDynamicDoctors(loadedDoctors);
+      } catch (error) {
+        console.error("Failed to dynamically load medical team:", error);
+
+        if (active) {
+          setDynamicDepartments([]);
+          setDynamicDoctors([]);
+          setMedicalTeamError(
+            "Could not load departments or surgeons for this hospital."
+          );
+        }
+      } finally {
+        if (active) setMedicalTeamLoading(false);
+      }
+    }
+
+    loadMedicalTeam();
+
+    return () => {
+      active = false;
+    };
+  }, [trackingData.hospitalId, hospitals]);
+
+  const inputClass =
+    "w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-900 outline-none transition-all";
 
   const addTimelineEvent = () => {
-    if (trackingData.trackingStatus) {
-      setTrackingData((prev) => ({
-        ...prev,
-        timeline: [
-          ...(prev.timeline || []),
-          {
-            timestamp: new Date().toISOString(),
-            status: prev.trackingStatus,
-            description: `Status updated to ${prev.trackingStatus}`,
-          },
-        ],
-      }));
-    }
+    if (!trackingData.trackingStatus) return;
+    setTrackingData((prev) => ({
+      ...prev,
+      timeline: [
+        ...(prev.timeline || []),
+        {
+          timestamp: new Date().toISOString(),
+          status: prev.trackingStatus,
+          description: `Status updated to ${prev.trackingStatus}`,
+        },
+      ],
+    }));
   };
 
   const handleHospitalChange = (hospitalId) => {
     const hospital = hospitals.find((h) => h.id === hospitalId);
-    if (hospital) {
-      const address = `${hospital.addressLine1 || ""}${
-        hospital.addressLine2 ? ", " + hospital.addressLine2 : ""
-      }, ${hospital.city || ""}, ${hospital.state || ""}${
-        hospital.pincode ? " - " + hospital.pincode : ""
-      }`;
 
-      setTrackingData((prev) => ({
-        ...prev,
-        hospitalId: hospital.id,
-        hospital: hospital.name,
-        hospitalAddress: address,
-        surgeon: "",
-        surgeonId: "",
-        department: "",
-      }));
-    } else {
+    if (!hospital) {
       setTrackingData((prev) => ({
         ...prev,
         hospitalId: "",
@@ -162,445 +329,711 @@ function TrackingModal({ match, onClose, onSave, hospitals, doctors }) {
         surgeon: "",
         surgeonId: "",
         department: "",
+        recipientLocation: { lat: "", lng: "", address: "" },
       }));
+      return;
     }
+
+    const address = [
+      hospital.addressLine1,
+      hospital.addressLine2,
+      hospital.city,
+      hospital.state,
+      hospital.pincode,
+    ]
+      .filter(Boolean)
+      .join(", ");
+
+    const lat =
+      hospital.lat ?? hospital.latitude ?? hospital.location?.lat ?? "";
+    const lng =
+      hospital.lng ?? hospital.longitude ?? hospital.location?.lng ?? "";
+
+    setTrackingData((prev) => ({
+      ...prev,
+      hospitalId: hospital.id,
+      hospital: hospital.name || "",
+      hospitalAddress: address,
+      surgeon: "",
+      surgeonId: "",
+      department: "",
+      recipientLocation: {
+        lat,
+        lng,
+        address,
+      },
+    }));
   };
 
   const handleSurgeonChange = (doctorId) => {
-    const doc = hospitalDoctors.find((d) => d.id === doctorId);
-    if (doc) {
-      setTrackingData((prev) => ({
-        ...prev,
-        surgeonId: doc.id,
-        surgeon: doc.fullName || "",
-      }));
-    } else {
-      setTrackingData((prev) => ({
-        ...prev,
-        surgeonId: "",
-        surgeon: "",
-      }));
+    const selectedDoctor = hospitalDoctors.find((d) => d.id === doctorId);
+    setTrackingData((prev) => ({
+      ...prev,
+      surgeonId: selectedDoctor?.id || "",
+      surgeon:
+        selectedDoctor?.fullName ||
+        selectedDoctor?.name ||
+        selectedDoctor?.doctorName ||
+        "",
+    }));
+  };
+
+  const searchLocation = async (type) => {
+    const searchText =
+      type === "donorLocation" ? pickupSearch : destinationSearch;
+
+    if (!searchText.trim()) {
+      setLocationSearchError("Enter a location to search.");
+      return;
+    }
+
+    setLocationSearchLoading(type);
+    setLocationSearchError("");
+
+    try {
+      const google = await loadTrackingGoogleMaps();
+      const { Place } = await google.maps.importLibrary("places");
+
+      const { places } = await Place.searchByText({
+        textQuery: searchText.trim(),
+        fields: ["id", "displayName", "formattedAddress", "location"],
+        maxResultCount: 5,
+        region: "IN",
+        language: "en",
+      });
+
+      const suggestions = (places || [])
+        .filter((place) => place.location)
+        .map((place) => ({
+          id: place.id,
+          name: place.displayName || "",
+          address: place.formattedAddress || place.displayName || searchText,
+          lat: place.location.lat(),
+          lng: place.location.lng(),
+        }));
+
+      if (type === "donorLocation") {
+        setPickupSuggestions(suggestions);
+      } else {
+        setDestinationSuggestions(suggestions);
+      }
+
+      if (!suggestions.length) {
+        setLocationSearchError(
+          "No Google Places results found. Try adding city, state, or pincode."
+        );
+      }
+    } catch (error) {
+      console.error("Google Places search failed:", error);
+      setLocationSearchError(
+        error?.message ||
+          "Google Places search failed. Make sure Places API (New) is enabled."
+      );
+    } finally {
+      setLocationSearchLoading("");
     }
   };
 
+  const selectSearchedLocation = (type, place) => {
+    const location = {
+      address: place.address,
+      lat: Number(place.lat),
+      lng: Number(place.lng),
+    };
+
+    setTrackingData((prev) => ({
+      ...prev,
+      [type]: location,
+      ...(type === "donorLocation"
+        ? { vehicleLocation: { lat: location.lat, lng: location.lng } }
+        : {}),
+    }));
+
+    if (type === "donorLocation") {
+      setPickupSearch(place.name || place.address);
+      setPickupSuggestions([]);
+    } else {
+      setDestinationSearch(place.name || place.address);
+      setDestinationSuggestions([]);
+    }
+
+    setLocationSearchError("");
+  };
+
+  const useCurrentPickupLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by this browser.");
+      return;
+    }
+
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = Number(position.coords.latitude.toFixed(6));
+        const lng = Number(position.coords.longitude.toFixed(6));
+        setTrackingData((prev) => ({
+          ...prev,
+          donorLocation: {
+            ...prev.donorLocation,
+            lat,
+            lng,
+            address: prev.donorLocation?.address || "Current pickup location",
+          },
+          vehicleLocation: { lat, lng },
+        }));
+        setLocating(false);
+      },
+      (error) => {
+        setLocating(false);
+        alert(`Unable to get current location: ${error.message}`);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
+
+  const setLocationField = (type, field, value) => {
+    setTrackingData((prev) => ({
+      ...prev,
+      [type]: {
+        ...(prev[type] || {}),
+        [field]:
+          field === "lat" || field === "lng"
+            ? value === ""
+              ? ""
+              : Number(value)
+            : value,
+      },
+    }));
+  };
+
+  const validCoordinate = (value) =>
+    value !== "" && value !== null && value !== undefined && !Number.isNaN(Number(value));
+
   const handleSave = () => {
-    onSave(trackingData);
+    if (!trackingData.hospitalId) {
+      alert("Please select a hospital.");
+      return;
+    }
+
+    if (
+      !validCoordinate(trackingData.donorLocation?.lat) ||
+      !validCoordinate(trackingData.donorLocation?.lng)
+    ) {
+      alert("Please add valid donor / pickup latitude and longitude.");
+      return;
+    }
+
+    if (
+      !validCoordinate(trackingData.recipientLocation?.lat) ||
+      !validCoordinate(trackingData.recipientLocation?.lng)
+    ) {
+      alert(
+        "Destination coordinates are missing. Add latitude and longitude for the selected hospital."
+      );
+      return;
+    }
+
+    const payload = {
+      ...trackingData,
+      donorLocation: {
+        ...trackingData.donorLocation,
+        lat: Number(trackingData.donorLocation.lat),
+        lng: Number(trackingData.donorLocation.lng),
+      },
+      recipientLocation: {
+        ...trackingData.recipientLocation,
+        lat: Number(trackingData.recipientLocation.lat),
+        lng: Number(trackingData.recipientLocation.lng),
+      },
+      vehicleLocation:
+        trackingData.vehicleLocation &&
+        validCoordinate(trackingData.vehicleLocation.lat) &&
+        validCoordinate(trackingData.vehicleLocation.lng)
+          ? {
+              lat: Number(trackingData.vehicleLocation.lat),
+              lng: Number(trackingData.vehicleLocation.lng),
+            }
+          : {
+              lat: Number(trackingData.donorLocation.lat),
+              lng: Number(trackingData.donorLocation.lng),
+            },
+    };
+
+    onSave(payload);
     onClose();
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(0, 0, 0, 0.5)", backdropFilter: "blur(8px)" }}
-    >
-      <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto animate-fadeIn">
-        {/* Header */}
-        <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6 rounded-t-3xl z-10">
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold flex items-center gap-2">
-              <span>🏥</span>
-              <span>Transplant Tracking</span>
-            </h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/60 backdrop-blur-md">
+      <div className="w-full max-w-6xl max-h-[94vh] overflow-y-auto rounded-3xl bg-gray-50 dark:bg-gray-950 shadow-2xl border border-white/20">
+        {/* Modern Header */}
+        <div className="sticky top-0 z-20 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800 px-5 sm:px-7 py-5 rounded-t-3xl">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 text-white flex items-center justify-center text-xl shadow-lg">
+                  🏥
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                    Transplant Tracking
+                  </h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {match.organType || "Organ"} • {match.bloodGroup || "Blood group not set"}
+                  </p>
+                </div>
+              </div>
+            </div>
             <button
               onClick={onClose}
-              className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-all"
+              className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 flex items-center justify-center"
             >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
+              ✕
             </button>
+          </div>
+
+          {/* Donor to Recipient Flow */}
+          <div className="mt-5 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+            <div className="rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900 p-3">
+              <p className="text-xs uppercase tracking-wide text-emerald-600 font-semibold">Donor</p>
+              <p className="font-bold truncate">{match.donorName || "—"}</p>
+            </div>
+            <div className="text-center">
+              <div className="text-xl">🚑</div>
+              <div className="w-10 sm:w-20 h-0.5 bg-gradient-to-r from-emerald-500 to-rose-500" />
+            </div>
+            <div className="rounded-2xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 p-3 text-right">
+              <p className="text-xs uppercase tracking-wide text-rose-600 font-semibold">Recipient</p>
+              <p className="font-bold truncate">{match.recipientName || "—"}</p>
+            </div>
           </div>
         </div>
 
-        <div className="p-6">
-          {/* Match Info */}
-          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-gray-700 dark:to-gray-700 rounded-2xl p-4 mb-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Donor
-                </p>
-                <p className="font-bold text-lg">{match.donorName}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Recipient
-                </p>
-                <p className="font-bold text-lg">{match.recipientName}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Organ Type
-                </p>
-                <p className="font-bold">{match.organType}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Blood Group
-                </p>
-                <p className="font-bold">{match.bloodGroup}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Left Column */}
-            <div className="space-y-4">
-              {/* Status */}
-              <div>
-                <label className="block text-sm font-semibold mb-2">
-                  Tracking Status
-                </label>
+        <div className="p-5 sm:p-7 space-y-6">
+          {/* Status */}
+          <section className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-end gap-4">
+              <div className="flex-1">
+                <label className="block text-sm font-semibold mb-2">Tracking Status</label>
                 <select
                   value={trackingData.trackingStatus}
                   onChange={(e) =>
-                    setTrackingData((prev) => ({
-                      ...prev,
-                      trackingStatus: e.target.value,
-                    }))
+                    setTrackingData((prev) => ({ ...prev, trackingStatus: e.target.value }))
                   }
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all"
+                  className={inputClass}
                 >
                   <option value="">Select Status</option>
-                  {trackingStatuses.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
+                  {trackingStatuses.map((status) => (
+                    <option key={status} value={status}>{status}</option>
                   ))}
                 </select>
-                <button
-                  onClick={addTimelineEvent}
-                  className="mt-2 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
-                >
-                  + Add to Timeline
-                </button>
               </div>
+              <button
+                type="button"
+                onClick={addTimelineEvent}
+                disabled={!trackingData.trackingStatus}
+                className="px-5 py-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-semibold disabled:opacity-40"
+              >
+                + Add to Timeline
+              </button>
+            </div>
+          </section>
 
-              {/* Date & Time */}
-              <div>
-                <label className="block text-sm font-semibold mb-2">
-                  Scheduled Date & Time
-                </label>
-                <input
-                  type="datetime-local"
-                  value={trackingData.scheduledDate}
-                  onChange={(e) =>
-                    setTrackingData((prev) => ({
-                      ...prev,
-                      scheduledDate: e.target.value,
-                    }))
-                  }
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all"
-                />
-              </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Schedule + Medical Team */}
+            <div className="space-y-6">
+              <section className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
+                <h3 className="font-bold text-lg mb-4 flex items-center gap-2">🗓️ Schedule</h3>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Scheduled Date & Time</label>
+                    <input
+                      type="datetime-local"
+                      value={trackingData.scheduledDate}
+                      onChange={(e) =>
+                        setTrackingData((prev) => ({ ...prev, scheduledDate: e.target.value }))
+                      }
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Estimated Duration</label>
+                    <input
+                      type="text"
+                      value={trackingData.estimatedDuration}
+                      onChange={(e) =>
+                        setTrackingData((prev) => ({ ...prev, estimatedDuration: e.target.value }))
+                      }
+                      placeholder="4-6 hours"
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+              </section>
 
-              {/* Department - FIXED */}
-<div>
-  <label className="block text-sm font-semibold mb-2">
-    Department
-  </label>
-  <select
-    value={trackingData.department}
-    onChange={(e) =>
-      setTrackingData((prev) => ({
-        ...prev,
-        department: e.target.value,
-      }))
-    }
-    disabled={!trackingData.hospitalId || hospitalDepartments.length === 0}
-    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-  >
-    <option value="">
-      {!trackingData.hospitalId 
-        ? "Select a hospital first" 
-        : hospitalDepartments.length === 0 
-        ? "No departments available" 
-        : "Select Department"}
-    </option>
-    {hospitalDepartments.map((dName, idx) => (
-      <option key={idx} value={dName}>
-        {dName}
-      </option>
-    ))}
-  </select>
-</div>
+              <section className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
+                <h3 className="font-bold text-lg mb-4 flex items-center gap-2">👨‍⚕️ Medical Team</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Department</label>
+                    <select
+                      value={trackingData.department}
+                      onChange={(e) =>
+                        setTrackingData((prev) => ({ ...prev, department: e.target.value }))
+                      }
+                      disabled={!trackingData.hospitalId || hospitalDepartments.length === 0}
+                      className={`${inputClass} disabled:opacity-50`}
+                    >
+                      <option value="">
+                        {!trackingData.hospitalId
+                          ? "Select a hospital first"
+                          : hospitalDepartments.length === 0
+                          ? medicalTeamLoading
+                            ? "Loading departments..."
+                            : "No departments available"
+                          : "Select Department"}
+                      </option>
+                      {hospitalDepartments.map((department, index) => (
+                        <option key={`${department}-${index}`} value={department}>
+                          {department}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-              {/* Surgeon */}
-<div>
-  <label className="block text-sm font-semibold mb-2">
-    Surgeon / Team Lead
-  </label>
-  <select
-    value={trackingData.surgeonId}
-    onChange={(e) => handleSurgeonChange(e.target.value)}
-    disabled={!trackingData.hospitalId || hospitalDoctors.length === 0}
-    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all mb-2 disabled:opacity-50 disabled:cursor-not-allowed"
-  >
-    <option value="">
-      {!trackingData.hospitalId 
-        ? "Select a hospital first" 
-        : hospitalDoctors.length === 0 
-        ? "No surgeons available at this hospital" 
-        : "Select Surgeon"}
-    </option>
-    {hospitalDoctors.map((doc) => (
-      <option key={doc.id} value={doc.id}>
-        {doc.fullName}{" "}
-        {doc.specialization ? `(${doc.specialization})` : ""}
-      </option>
-    ))}
-  </select>
-  <input
-    type="text"
-    value={trackingData.surgeon}
-    onChange={(e) =>
-      setTrackingData((prev) => ({
-        ...prev,
-        surgeon: e.target.value,
-        surgeonId: "",
-      }))
-    }
-    placeholder="Or type surgeon name manually"
-    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all"
-  />
-</div>
-
-              {/* Duration */}
-              <div>
-                <label className="block text-sm font-semibold mb-2">
-                  Estimated Duration
-                </label>
-                <input
-                  type="text"
-                  value={trackingData.estimatedDuration}
-                  onChange={(e) =>
-                    setTrackingData((prev) => ({
-                      ...prev,
-                      estimatedDuration: e.target.value,
-                    }))
-                  }
-                  placeholder="4-6 hours"
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all"
-                />
-              </div>
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Surgeon / Team Lead</label>
+                    <select
+                      value={trackingData.surgeonId}
+                      onChange={(e) => handleSurgeonChange(e.target.value)}
+                      disabled={!trackingData.hospitalId || hospitalDoctors.length === 0}
+                      className={`${inputClass} disabled:opacity-50`}
+                    >
+                      <option value="">
+                        {!trackingData.hospitalId
+                          ? "Select a hospital first"
+                          : hospitalDoctors.length === 0
+                          ? medicalTeamLoading
+                            ? "Loading surgeons..."
+                            : "No surgeons available at this hospital"
+                          : "Select Surgeon"}
+                      </option>
+                      {hospitalDoctors.map((doctor) => (
+                        <option key={doctor.id} value={doctor.id}>
+                          {doctor.fullName || doctor.name || doctor.doctorName || "Unnamed Doctor"}
+                          {doctor.specialization || doctor.department
+                            ? ` (${doctor.specialization || doctor.department})`
+                            : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      value={trackingData.surgeon}
+                      onChange={(e) =>
+                        setTrackingData((prev) => ({
+                          ...prev,
+                          surgeon: e.target.value,
+                          surgeonId: "",
+                        }))
+                      }
+                      placeholder="Or type surgeon name manually"
+                      className={`${inputClass} mt-2`}
+                    />
+                    {medicalTeamError && (
+                      <p className="mt-2 text-xs text-red-600 dark:text-red-400">
+                        {medicalTeamError}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </section>
             </div>
 
-            {/* Right Column */}
-            <div className="space-y-4">
-              {/* Hospital Select */}
-              <div>
-                <label className="block text-sm font-semibold mb-2 flex items-center gap-2">
-                  <span>📍</span>
-                  <span>Select Hospital</span>
-                </label>
-                <select
-                  value={trackingData.hospitalId}
-                  onChange={(e) => handleHospitalChange(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all"
-                >
-                  <option value="">Select Hospital</option>
-                  {hospitals
-                    .filter((h) => !h.status || h.status === "Active")
-                    .map((h) => (
-                      <option key={h.id} value={h.id}>
-                        {h.name} - {h.city}
-                      </option>
-                    ))}
-                </select>
+            {/* Hospital */}
+            <section className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
+              <h3 className="font-bold text-lg mb-4 flex items-center gap-2">🏥 Destination Hospital</h3>
+              <select
+                value={trackingData.hospitalId}
+                onChange={(e) => handleHospitalChange(e.target.value)}
+                className={inputClass}
+              >
+                <option value="">Select Hospital</option>
+                {hospitals
+                  .filter((h) => !h.status || h.status === "Active")
+                  .map((hospital) => (
+                    <option key={hospital.id} value={hospital.id}>
+                      {hospital.name} - {hospital.city}
+                    </option>
+                  ))}
+              </select>
 
-                {/* Hospital Details */}
-                {selectedHospital && (
-                  <div className="mt-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl space-y-2">
+              {selectedHospital && (
+                <div className="mt-4 rounded-2xl bg-blue-50 dark:bg-blue-950/25 border border-blue-100 dark:border-blue-900 p-4">
+                  <p className="font-bold text-blue-900 dark:text-blue-200">{selectedHospital.name}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    {trackingData.hospitalAddress || "Address not available"}
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
                     <div>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
-                        Address
-                      </p>
-                      <p className="text-sm font-medium">
-                        {selectedHospital.addressLine1}
-                        {selectedHospital.addressLine2
-                          ? `, ${selectedHospital.addressLine2}`
-                          : ""}
-                        , {selectedHospital.city}, {selectedHospital.state}{" "}
-                        {selectedHospital.pincode
-                          ? `- ${selectedHospital.pincode}`
-                          : ""}
-                      </p>
+                      <p className="text-xs text-gray-500">Phone</p>
+                      <p className="text-sm font-semibold">{selectedHospital.contactNumber || "—"}</p>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          Phone
-                        </p>
-                        <p className="text-sm font-medium">
-                          {selectedHospital.contactNumber || "—"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">
-                          Emergency
-                        </p>
-                        <p className="text-sm font-medium text-red-600 dark:text-red-400">
-                          {selectedHospital.emergencyNumber || "—"}
-                        </p>
-                      </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Emergency</p>
+                      <p className="text-sm font-semibold text-red-600">{selectedHospital.emergencyNumber || "—"}</p>
                     </div>
-
-                    {(selectedHospital.availableOrgans || []).length > 0 && (
-                      <div>
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
-                          Available Organs
-                        </p>
-                        <div className="flex flex-wrap gap-1">
-                          {selectedHospital.availableOrgans.map(
-                            (organ, idx) => (
-                              <span
-                                key={idx}
-                                className="text-xs px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 rounded"
-                              >
-                                {organ}
-                              </span>
-                            )
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {hospitalDepartments.length > 0 && (
-                      <div>
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
-                          Departments
-                        </p>
-                        <div className="flex flex-wrap gap-1">
-                          {hospitalDepartments.map((dep, idx) => (
-                            <span
-                              key={idx}
-                              className="text-xs px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 rounded"
-                            >
-                              {dep}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-3 gap-2 text-xs mt-2">
-                      <div>
-                        <p className="text-gray-500 dark:text-gray-400">
-                          Total Beds
-                        </p>
-                        <p className="font-semibold">
-                          {selectedHospital.totalBeds ?? "—"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500 dark:text-gray-400">
-                          ICU Beds
-                        </p>
-                        <p className="font-semibold">
-                          {selectedHospital.icuBeds ?? "—"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500 dark:text-gray-400">
-                          Ventilators
-                        </p>
-                        <p className="font-semibold">
-                          {selectedHospital.ventilators ?? "—"}
-                        </p>
-                      </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Beds</p>
+                      <p className="text-sm font-semibold">{selectedHospital.totalBeds ?? "—"}</p>
                     </div>
+                    <div>
+                      <p className="text-xs text-gray-500">ICU</p>
+                      <p className="text-sm font-semibold">{selectedHospital.icuBeds ?? "—"}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </section>
+          </div>
+
+          {/* Transport Locations */}
+          <section className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
+            <div className="mb-5">
+              <h3 className="font-bold text-lg flex items-center gap-2">📍 Transport Locations</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Search and select the pickup and destination locations. Coordinates are filled automatically for live tracking.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              {/* Pickup Search */}
+              <div className="rounded-2xl border border-emerald-200 dark:border-emerald-900 bg-emerald-50/60 dark:bg-emerald-950/20 p-4">
+                <h4 className="font-bold text-emerald-700 dark:text-emerald-300 mb-3">
+                  🟢 Donor / Pickup Location
+                </h4>
+
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={pickupSearch}
+                    onChange={(e) => setPickupSearch(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        searchLocation("donorLocation");
+                      }
+                    }}
+                    placeholder="Search pickup location..."
+                    className={inputClass}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => searchLocation("donorLocation")}
+                    disabled={locationSearchLoading === "donorLocation"}
+                    className="px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold disabled:opacity-50"
+                  >
+                    {locationSearchLoading === "donorLocation" ? "..." : "🔍"}
+                  </button>
+                </div>
+
+                {pickupSuggestions.length > 0 && (
+                  <div className="mt-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden shadow-lg">
+                    {pickupSuggestions.map((place) => (
+                      <button
+                        key={place.id}
+                        type="button"
+                        onClick={() => selectSearchedLocation("donorLocation", place)}
+                        className="w-full text-left px-4 py-3 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 border-b last:border-b-0 border-gray-100 dark:border-gray-800"
+                      >
+                        <p className="font-semibold text-sm">{place.name || "Location"}</p>
+                        <p className="text-xs text-gray-500 mt-1">{place.address}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={useCurrentPickupLocation}
+                  disabled={locating}
+                  className="mt-3 w-full px-4 py-2.5 rounded-xl bg-white dark:bg-gray-900 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 font-semibold disabled:opacity-50"
+                >
+                  {locating ? "Getting Current Location..." : "◎ Use My Current Location"}
+                </button>
+
+                {trackingData.donorLocation?.address && (
+                  <div className="mt-3 rounded-xl bg-white/80 dark:bg-gray-900/70 p-3 border border-emerald-100 dark:border-emerald-900">
+                    <p className="text-xs text-gray-500">Selected pickup</p>
+                    <p className="text-sm font-semibold mt-1">
+                      {trackingData.donorLocation.address}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {trackingData.donorLocation.lat}, {trackingData.donorLocation.lng}
+                    </p>
                   </div>
                 )}
               </div>
 
-              {/* Notes */}
-              <div>
-                <label className="block text-sm font-semibold mb-2">
-                  Notes
-                </label>
-                <textarea
-                  value={trackingData.notes}
-                  onChange={(e) =>
-                    setTrackingData((prev) => ({
-                      ...prev,
-                      notes: e.target.value,
-                    }))
-                  }
-                  placeholder="Additional notes or special considerations..."
-                  rows="8"
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all resize-none"
-                />
+              {/* Destination Search */}
+              <div className="rounded-2xl border border-rose-200 dark:border-rose-900 bg-rose-50/60 dark:bg-rose-950/20 p-4">
+                <h4 className="font-bold text-rose-700 dark:text-rose-300 mb-3">
+                  🔴 Recipient / Hospital Destination
+                </h4>
+
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={destinationSearch}
+                    onChange={(e) => setDestinationSearch(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        searchLocation("recipientLocation");
+                      }
+                    }}
+                    placeholder="Search hospital or destination..."
+                    className={inputClass}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => searchLocation("recipientLocation")}
+                    disabled={locationSearchLoading === "recipientLocation"}
+                    className="px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold disabled:opacity-50"
+                  >
+                    {locationSearchLoading === "recipientLocation" ? "..." : "🔍"}
+                  </button>
+                </div>
+
+                {destinationSuggestions.length > 0 && (
+                  <div className="mt-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden shadow-lg">
+                    {destinationSuggestions.map((place) => (
+                      <button
+                        key={place.id}
+                        type="button"
+                        onClick={() => selectSearchedLocation("recipientLocation", place)}
+                        className="w-full text-left px-4 py-3 hover:bg-rose-50 dark:hover:bg-rose-950/30 border-b last:border-b-0 border-gray-100 dark:border-gray-800"
+                      >
+                        <p className="font-semibold text-sm">{place.name || "Location"}</p>
+                        <p className="text-xs text-gray-500 mt-1">{place.address}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {selectedHospital && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const query =
+                        trackingData.hospitalAddress ||
+                        `${selectedHospital.name || ""}, ${selectedHospital.city || ""}, ${selectedHospital.state || ""}`;
+                      setDestinationSearch(query);
+                    }}
+                    className="mt-3 w-full px-4 py-2.5 rounded-xl bg-white dark:bg-gray-900 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 font-semibold"
+                  >
+                    🏥 Use Selected Hospital Address
+                  </button>
+                )}
+
+                {trackingData.recipientLocation?.address && (
+                  <div className="mt-3 rounded-xl bg-white/80 dark:bg-gray-900/70 p-3 border border-rose-100 dark:border-rose-900">
+                    <p className="text-xs text-gray-500">Selected destination</p>
+                    <p className="text-sm font-semibold mt-1">
+                      {trackingData.recipientLocation.address}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {trackingData.recipientLocation.lat}, {trackingData.recipientLocation.lng}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
-          </div>
 
-          {/* Timeline */}
-          <div className="mt-6">
-            <label className="block text-sm font-semibold mb-3 flex items-center gap-2">
-              <span>🕐</span>
-              <span>Timeline</span>
-            </label>
-            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-2xl p-4 max-h-64 overflow-y-auto">
-              {!trackingData.timeline ||
-              trackingData.timeline.length === 0 ? (
-                <p className="text-gray-500 text-center py-4">
-                  No timeline events yet
+            {locationSearchError && (
+              <p className="mt-3 text-sm text-red-600 dark:text-red-400">
+                {locationSearchError}
+              </p>
+            )}
+
+            <div className="mt-4 rounded-2xl bg-gray-900 text-white p-4 flex items-center justify-between gap-3 overflow-hidden">
+              <div className="min-w-0">
+                <p className="text-xs text-gray-400">Transport route</p>
+                <p className="font-semibold truncate">
+                  {trackingData.donorLocation?.address || "Search pickup location"} →{" "}
+                  {trackingData.recipientLocation?.address ||
+                    trackingData.hospital ||
+                    "Search destination"}
                 </p>
-              ) : (
-                <div className="space-y-3">
-                  {trackingData.timeline.map((event, idx) => (
-                    <div
-                      key={idx}
-                      className={`flex gap-3 ${
-                        idx !== trackingData.timeline.length - 1
-                          ? "border-b border-gray-200 dark:border-gray-600 pb-3"
-                          : ""
-                      }`}
-                    >
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                        {idx + 1}
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-semibold">{event.status}</p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                          {new Date(event.timestamp).toLocaleString()}
-                        </p>
-                        {event.description && (
-                          <p className="text-sm mt-1">{event.description}</p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              </div>
+              <div className="text-2xl flex-shrink-0">🫀 ─ 🚑 ─ 🏥</div>
             </div>
-          </div>
+          </section>
 
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-            <button
-              onClick={onClose}
-              className="px-6 py-3 bg-gray-200 dark:bg-gray-700 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all font-medium"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:shadow-lg transition-all font-medium"
-            >
-              Save Tracking Info
-            </button>
+          {/* Notes + Timeline */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <section className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
+              <h3 className="font-bold text-lg mb-3">📝 Notes</h3>
+              <textarea
+                value={trackingData.notes}
+                onChange={(e) =>
+                  setTrackingData((prev) => ({ ...prev, notes: e.target.value }))
+                }
+                placeholder="Additional notes or special considerations..."
+                rows="7"
+                className={`${inputClass} resize-none`}
+              />
+            </section>
+
+            <section className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
+              <h3 className="font-bold text-lg mb-3">🕐 Timeline</h3>
+              <div className="max-h-56 overflow-y-auto">
+                {!trackingData.timeline?.length ? (
+                  <div className="text-center py-10 text-gray-500">
+                    <div className="text-3xl mb-2">🕐</div>
+                    No timeline events yet
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {trackingData.timeline.map((event, index) => (
+                      <div key={index} className="flex gap-3">
+                        <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                          {index + 1}
+                        </div>
+                        <div>
+                          <p className="font-semibold">{event.status}</p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(event.timestamp).toLocaleString()}
+                          </p>
+                          {event.description && (
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                              {event.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
           </div>
+        </div>
+
+        {/* Sticky Footer */}
+        <div className="sticky bottom-0 z-20 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-t border-gray-200 dark:border-gray-800 px-5 sm:px-7 py-4 flex justify-end gap-3 rounded-b-3xl">
+          <button
+            onClick={onClose}
+            className="px-6 py-3 rounded-xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 font-semibold"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            className="px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold shadow-lg hover:shadow-xl"
+          >
+            Save & Track
+          </button>
         </div>
       </div>
     </div>
@@ -647,18 +1080,100 @@ export default function DoctorDashboard() {
         const all = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
         setDonors(all.filter((u) => u.role === "donor"));
         setRecipients(all.filter((u) => u.role === "recipient"));
-        const allDoctors = all.filter((u) => u.role === "doctor");
-        setDoctors(allDoctors);
+        // Doctors stored in the main users collection
+        const userDoctors = all
+          .filter((u) => u.role === "doctor")
+          .map((u) => ({
+            ...u,
+            source: "users",
+          }));
 
         const currentDoctor =
-          allDoctors.find((u) => u.id === auth.currentUser?.uid) || null;
+          userDoctors.find((u) => u.id === auth.currentUser?.uid) || null;
         setDoctor(currentDoctor);
 
+        // Load hospitals first
         const hospitalsCol = collection(db, "hospitals");
         const hospitalsSnap = await getDocs(hospitalsCol);
-        setHospitals(
-          hospitalsSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
+
+        const hospitalList = hospitalsSnap.docs.map((hospitalDoc) => {
+          const h = hospitalDoc.data() || {};
+
+          return {
+            id: hospitalDoc.id,
+            ...h,
+
+            // Normalize fields because HospitalDashboard may save these
+            // under slightly different names.
+            addressLine1: h.addressLine1 || h.address || "",
+            contactNumber: h.contactNumber || h.phone || "",
+            emergencyNumber:
+              h.emergencyNumber || h.emergencyContact || "",
+            totalBeds:
+              h.totalBeds != null
+                ? h.totalBeds
+                : h.beds != null && h.beds !== ""
+                ? Number(h.beds)
+                : null,
+            departments: Array.isArray(h.departments)
+              ? h.departments
+              : [],
+          };
+        });
+
+        setHospitals(hospitalList);
+
+        // IMPORTANT:
+        // Doctors added from Hospital Details are stored at:
+        // hospitals/{hospitalId}/doctors/{doctorId}
+        // Load doctors from every hospital subcollection.
+        const hospitalDoctorLists = await Promise.all(
+          hospitalList.map(async (hospital) => {
+            try {
+              const doctorsSnap = await getDocs(
+                collection(db, "hospitals", hospital.id, "doctors")
+              );
+
+              return doctorsSnap.docs.map((doctorDoc) => {
+                const doctorData = doctorDoc.data() || {};
+
+                return {
+                  id: doctorDoc.id,
+                  ...doctorData,
+                  hospitalId: hospital.id,
+                  hospitalName: hospital.name || "",
+                  source: "hospitalSubcollection",
+
+                  // Support different doctor-name field names
+                  fullName:
+                    doctorData.fullName ||
+                    doctorData.name ||
+                    doctorData.doctorName ||
+                    "",
+                  specialization:
+                    doctorData.specialization ||
+                    doctorData.department ||
+                    doctorData.speciality ||
+                    "",
+                };
+              });
+            } catch (doctorErr) {
+              console.error(
+                `Failed to load doctors for hospital ${hospital.id}:`,
+                doctorErr
+              );
+              return [];
+            }
+          })
         );
+
+        const subcollectionDoctors = hospitalDoctorLists.flat();
+
+        // Merge user doctors and hospital-subcollection doctors.
+        // The tracking modal can now find surgeons using hospitalId.
+        const mergedDoctors = [...userDoctors, ...subcollectionDoctors];
+
+        setDoctors(mergedDoctors);
       } catch (err) {
         console.error("Failed to load data:", err);
       }
@@ -757,11 +1272,58 @@ export default function DoctorDashboard() {
 
   async function saveTrackingInfo(matchId, trackingData) {
     try {
-      const ref = doc(db, "matches", matchId);
-      await updateDoc(ref, {
+      const matchRef = doc(db, "matches", matchId);
+
+      // Keep the existing match document updated.
+      await updateDoc(matchRef, {
         ...trackingData,
         updatedAt: new Date(),
       });
+
+      // Also create/update the live-tracking document using the SAME match ID.
+      // OrganTrackingMap / TrackingPage can listen to the organTransfers collection.
+      const currentMatch = matches.find((m) => m.id === matchId) || {};
+
+      const transportStatusMap = {
+        Scheduled: "harvested",
+        "Pre-Op Preparation": "harvested",
+        "Surgery In Progress": "in_transit",
+        "Post-Op Recovery": "arrived",
+        Completed: "delivered",
+        Cancelled: "cancelled",
+      };
+
+      await setDoc(
+        doc(db, "organTransfers", matchId),
+        {
+          matchId,
+          donorId: currentMatch.donorId || "",
+          donorName: currentMatch.donorName || "",
+          recipientId: currentMatch.recipientId || "",
+          recipientName: currentMatch.recipientName || "",
+          organType: currentMatch.organType || "",
+          bloodGroup: currentMatch.bloodGroup || "",
+          hospitalId: trackingData.hospitalId || "",
+          hospital: trackingData.hospital || "",
+          department: trackingData.department || "",
+          surgeon: trackingData.surgeon || "",
+          trackingStatus: trackingData.trackingStatus || "",
+          status:
+            transportStatusMap[trackingData.trackingStatus] ||
+            currentMatch.transportStatus ||
+            "harvested",
+          donorLocation: trackingData.donorLocation,
+          recipientLocation: trackingData.recipientLocation,
+          vehicleLocation:
+            trackingData.vehicleLocation || trackingData.donorLocation,
+          scheduledDate: trackingData.scheduledDate || "",
+          estimatedDuration: trackingData.estimatedDuration || "",
+          notes: trackingData.notes || "",
+          timeline: trackingData.timeline || [],
+          updatedAt: new Date(),
+        },
+        { merge: true }
+      );
     } catch (err) {
       console.error(err);
       alert("Failed to update tracking info: " + err.message);
@@ -1013,6 +1575,7 @@ export default function DoctorDashboard() {
     { id: "matches", label: "Matches", icon: "🔗" },
     { id: "documents", label: "Document Review", icon: "📄" },
     { id: "tracking",   label: "Live Tracking",      icon: "🗺️" },
+    { id: "police",     label: "Police Verification", icon: "🚔" },
   ].map((tab) => (
     <button
       key={tab.id}
@@ -1561,10 +2124,16 @@ export default function DoctorDashboard() {
   )}
 
   {activeTab === "tracking" && (
-  <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-white/20">
-    <TrackingPage />
-  </div>
-)}
+    <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-white/20">
+      <TrackingPage />
+    </div>
+  )}
+
+  {activeTab === "police" && (
+    <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-white/20">
+      <PoliceVerificationAdmin />
+    </div>
+  )}
 
 </div> {/* END of Tab Content */}
 </div>

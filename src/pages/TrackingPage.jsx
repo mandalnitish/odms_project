@@ -1,402 +1,810 @@
-import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
-import L from 'leaflet';
-import { db } from '../firebase';
-import { collection, onSnapshot, getDocs, updateDoc, doc } from 'firebase/firestore';
-import 'leaflet/dist/leaflet.css';
+// src/pages/TrackingPage.jsx
 
-// ─── Fix Leaflet default icon bug with Vite ───────────────────────────────────
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import React, {
+  useEffect,
+  useState,
+} from "react";
 
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: markerIcon2x,
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
-});
+import { db } from "../firebase";
 
-// ─── Helper: handles Firestore GeoPoint (.latitude/.longitude),
-//             plain map ({lat, lng}), and internal GeoPoint (._lat/._long) ─────
-const getLat = (loc) => {
-  if (!loc) return null;
-  // Firestore GeoPoint (most common): { latitude, longitude }
-  if (typeof loc.latitude === 'number') return loc.latitude;
-  // Plain map written by simulation: { lat, lng }
-  if (typeof loc.lat === 'number') return loc.lat;
-  // Internal GeoPoint fallback
-  if (typeof loc._lat === 'number') return loc._lat;
-  return null;
+import {
+  collection,
+  onSnapshot,
+  doc,
+  updateDoc,
+} from "firebase/firestore";
+
+import {
+  MapPin,
+  Clock,
+  AlertTriangle,
+  CheckCircle,
+  Truck,
+  Activity,
+} from "lucide-react";
+
+// ======================================================
+// IMPORT GOOGLE MAP COMPONENT
+// ======================================================
+
+import OrganTrackingMap from "../components/OrganTrackingMap";
+
+// ======================================================
+// LOCATION HELPER
+// Supports Firestore GeoPoint and { lat, lng }
+// ======================================================
+
+const getCoords = (location) => {
+  if (!location) {
+    return null;
+  }
+
+  const lat =
+    location.latitude ??
+    location.lat;
+
+  const lng =
+    location.longitude ??
+    location.lng;
+
+  if (
+    lat == null ||
+    lng == null
+  ) {
+    return null;
+  }
+
+  const latitude =
+    Number(lat);
+
+  const longitude =
+    Number(lng);
+
+  if (
+    Number.isNaN(latitude) ||
+    Number.isNaN(longitude)
+  ) {
+    return null;
+  }
+
+  return {
+    lat: latitude,
+    lng: longitude,
+  };
 };
 
-const getLng = (loc) => {
-  if (!loc) return null;
-  // Firestore GeoPoint: { latitude, longitude }
-  if (typeof loc.longitude === 'number') return loc.longitude;
-  // Plain map: { lat, lng }
-  if (typeof loc.lng === 'number') return loc.lng;
-  // Internal GeoPoint fallback
-  if (typeof loc._long === 'number') return loc._long;
-  return null;
+// ======================================================
+// TIMELINE
+// ======================================================
+
+const STEPS = [
+  "harvested",
+  "in_transit",
+  "arrived",
+  "delivered",
+];
+
+const stepLabels = {
+  harvested:
+    "🫀 Organ Harvested",
+
+  in_transit:
+    "🚑 In Transit",
+
+  arrived:
+    "🏥 Arrived at Hospital",
+
+  delivered:
+    "✅ Successfully Delivered",
 };
 
-// ─── Custom colored dot icons ─────────────────────────────────────────────────
-const createIcon = (color, emoji) =>
-  L.divIcon({
-    html: `<div style="
-      background:${color};
-      width:20px;height:20px;
-      border-radius:50%;
-      border:3px solid white;
-      box-shadow:0 0 8px rgba(0,0,0,0.5);
-      display:flex;align-items:center;justify-content:center;
-      font-size:10px;
-    ">${emoji}</div>`,
-    className: '',
-    iconAnchor: [10, 10],
-  });
+function TransferTimeline({
+  status,
+}) {
+  const currentIndex =
+    STEPS.indexOf(status);
 
-const donorIcon     = createIcon('#22c55e', '');
-const recipientIcon = createIcon('#ef4444', '');
-const vehicleIcon   = createIcon('#f59e0b', '🚑');
-
-// ─── Status steps ─────────────────────────────────────────────────────────────
-const STEPS = ['harvested', 'in_transit', 'arrived', 'delivered'];
-const STEP_LABELS = {
-  harvested:  '🫀 Harvested',
-  in_transit: '🚑 In Transit',
-  arrived:    '🏥 Arrived',
-  delivered:  '✅ Delivered',
-};
-
-// ─── Simulate vehicle movement ────────────────────────────────────────────────
-async function tickVehicleMovement(db) {
-  const snapshot = await getDocs(collection(db, 'organTransfers'));
-  snapshot.forEach(async (docSnap) => {
-    const data = docSnap.data();
-    if (data.status !== 'in_transit' || !data.vehicleLocation) return;
-
-    const { vehicleLocation, recipientLocation } = data;
-
-    const vLat = getLat(vehicleLocation);
-    const vLng = getLng(vehicleLocation);
-    const rLat = getLat(recipientLocation);
-    const rLng = getLng(recipientLocation);
-
-    if (vLat === null || vLng === null || rLat === null || rLng === null) return;
-
-    const newLat = vLat + (rLat - vLat) * 0.1;
-    const newLng = vLng + (rLng - vLng) * 0.1;
-    const dist = Math.abs(newLat - rLat) + Math.abs(newLng - rLng);
-    const newStatus = dist < 0.01 ? 'arrived' : 'in_transit';
-
-    // Write back as plain map {lat, lng} — avoids GeoPoint constructor dependency
-    await updateDoc(doc(db, 'organTransfers', docSnap.id), {
-      vehicleLocation: { lat: newLat, lng: newLng },
-      status: newStatus,
-    });
-  });
-}
-
-// ─── Timeline Component ───────────────────────────────────────────────────────
-function TransferTimeline({ status }) {
-  const currentIndex = STEPS.indexOf(status);
   return (
-    <div className="flex items-center flex-wrap gap-1 mt-3">
-      {STEPS.map((step, i) => (
-        <div key={step} className="flex items-center gap-1">
-          <div className="flex flex-col items-center">
-            <div
-              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-500
-                ${i <= currentIndex ? 'bg-green-500 text-white shadow-lg shadow-green-500/40' : 'bg-white/10 text-white/30'}`}
-            >
-              {i + 1}
+    <div className="flex items-center gap-2 my-4 overflow-x-auto pb-2">
+
+      {STEPS.map(
+        (
+          step,
+          index
+        ) => (
+          <div
+            key={step}
+            className="flex items-center gap-2"
+          >
+
+            <div className="flex flex-col items-center">
+
+              <div
+                className={`
+                  w-8
+                  h-8
+                  rounded-full
+                  flex
+                  items-center
+                  justify-center
+                  text-sm
+                  font-bold
+                  ${
+                    index <= currentIndex
+                      ? "bg-green-500 text-white"
+                      : "bg-gray-700 text-gray-400"
+                  }
+                `}
+              >
+                {index + 1}
+              </div>
+
+              <span className="text-xs mt-1 text-center w-24">
+                {stepLabels[step]}
+              </span>
+
             </div>
-            <span className={`text-xs mt-1 text-center w-16 leading-tight
-              ${i <= currentIndex ? 'text-green-400' : 'text-white/30'}`}>
-              {STEP_LABELS[step]}
-            </span>
+
+            {index <
+              STEPS.length - 1 && (
+              <div
+                className={`
+                  h-1
+                  w-12
+                  rounded
+                  ${
+                    index < currentIndex
+                      ? "bg-green-500"
+                      : "bg-gray-700"
+                  }
+                `}
+              />
+            )}
+
           </div>
-          {i < STEPS.length - 1 && (
-            <div className={`h-0.5 w-8 mb-4 rounded transition-all duration-500
-              ${i < currentIndex ? 'bg-green-500' : 'bg-white/10'}`}
-            />
-          )}
-        </div>
-      ))}
+        )
+      )}
+
     </div>
   );
 }
 
-// ─── Map Overlays for each transfer ──────────────────────────────────────────
-function TransferOverlay({ transfer }) {
-  const {
-    donorLocation, recipientLocation, vehicleLocation,
-    organType, status, donorName, recipientName, urgencyLevel,
-  } = transfer;
+// ======================================================
+// MAIN TRACKING PAGE
+// ======================================================
 
-  if (!donorLocation || !recipientLocation) return null;
-
-  const dLat = getLat(donorLocation);
-  const dLng = getLng(donorLocation);
-  const rLat = getLat(recipientLocation);
-  const rLng = getLng(recipientLocation);
-
-  // Skip rendering if coordinates couldn't be extracted
-  if (dLat === null || dLng === null || rLat === null || rLng === null) return null;
-
-  const vLat = getLat(vehicleLocation);
-  const vLng = getLng(vehicleLocation);
-  const hasVehicle = vehicleLocation && vLat !== null && vLng !== null;
-
-  const routeCoords = [
-    [dLat, dLng],
-    hasVehicle ? [vLat, vLng] : null,
-    [rLat, rLng],
-  ].filter(Boolean);
-
-  const lineColor = urgencyLevel === 'critical' ? '#ef4444' : '#3b82f6';
-
-  return (
-    <>
-      <Marker position={[dLat, dLng]} icon={donorIcon}>
-        <Popup>
-          <div className="text-sm">
-            <p className="font-bold text-green-600">🟢 Donor</p>
-            <p>{donorName}</p>
-            <p className="text-gray-500">Organ: {organType}</p>
-          </div>
-        </Popup>
-      </Marker>
-
-      <Marker position={[rLat, rLng]} icon={recipientIcon}>
-        <Popup>
-          <div className="text-sm">
-            <p className="font-bold text-red-600">🔴 Recipient</p>
-            <p>{recipientName}</p>
-            <p className="text-gray-500">Urgency: <span className="font-semibold">{urgencyLevel}</span></p>
-          </div>
-        </Popup>
-      </Marker>
-
-      {hasVehicle && status === 'in_transit' && (
-        <Marker position={[vLat, vLng]} icon={vehicleIcon}>
-          <Popup>
-            <div className="text-sm">
-              <p className="font-bold text-amber-600">🚑 Transport Vehicle</p>
-              <p>Carrying: {organType}</p>
-              <p className="text-gray-500">Status: In Transit</p>
-            </div>
-          </Popup>
-        </Marker>
-      )}
-
-      <Polyline
-        positions={routeCoords}
-        pathOptions={{ color: lineColor, dashArray: '8,6', weight: 3, opacity: 0.8 }}
-      />
-    </>
-  );
-}
-
-// ─── Urgency Badge ────────────────────────────────────────────────────────────
-function UrgencyBadge({ level }) {
-  const styles = {
-    critical: 'bg-red-500/20 text-red-400 border border-red-500/30',
-    high:     'bg-orange-500/20 text-orange-400 border border-orange-500/30',
-    medium:   'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30',
-    low:      'bg-green-500/20 text-green-400 border border-green-500/30',
-  };
-  return (
-    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold uppercase ${styles[level] || styles.low}`}>
-      {level}
-    </span>
-  );
-}
-
-// ─── Status Badge ─────────────────────────────────────────────────────────────
-function StatusBadge({ status }) {
-  const styles = {
-    harvested:  'bg-blue-500/20 text-blue-400',
-    in_transit: 'bg-amber-500/20 text-amber-400',
-    arrived:    'bg-purple-500/20 text-purple-400',
-    delivered:  'bg-green-500/20 text-green-400',
-  };
-  return (
-    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${styles[status] || ''}`}>
-      {STEP_LABELS[status] || status}
-    </span>
-  );
-}
-
-// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function TrackingPage() {
-  const [transfers, setTransfers]     = useState([]);
-  const [loading, setLoading]         = useState(true);
-  const [error, setError]             = useState(null);
-  const [lastTick, setLastTick]       = useState(null);
-  const [simulationOn, setSimulation] = useState(true);
+  const [
+    transfers,
+    setTransfers,
+  ] = useState([]);
 
-  // Real-time Firestore listener — always clears loading, even on error
+  const [
+    lastUpdate,
+    setLastUpdate,
+  ] = useState(
+    new Date()
+  );
+
+  const [
+    simulationEnabled,
+    setSimulationEnabled,
+  ] = useState(true);
+
+  // ====================================================
+  // FIRESTORE REAL-TIME LISTENER
+  // ====================================================
+
   useEffect(() => {
-    const unsub = onSnapshot(
-      collection(db, 'organTransfers'),
-      (snap) => {
-        setTransfers(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-        setLoading(false);
-        setError(null);
-      },
-      (err) => {
-        console.error('Firestore error:', err);
-        setError(err.message);
-        setLoading(false); // ← always unblock the map
-      }
-    );
-    return () => unsub();
+    const unsubscribe =
+      onSnapshot(
+        collection(
+          db,
+          "organTransfers"
+        ),
+
+        (snapshot) => {
+          const data =
+            snapshot.docs.map(
+              (document) => ({
+                id:
+                  document.id,
+
+                ...document.data(),
+              })
+            );
+
+          setTransfers(data);
+
+          setLastUpdate(
+            new Date()
+          );
+        },
+
+        (error) => {
+          console.error(
+            "Failed to load organ transfers:",
+            error
+          );
+        }
+      );
+
+    return () =>
+      unsubscribe();
   }, []);
 
-  // Vehicle simulation loop
-  useEffect(() => {
-    if (!simulationOn) return;
-    const interval = setInterval(async () => {
-      await tickVehicleMovement(db);
-      setLastTick(new Date().toLocaleTimeString());
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [simulationOn]);
+  // ====================================================
+  // SIMULATED VEHICLE MOVEMENT
+  // ====================================================
 
-  const inTransitCount = transfers.filter((t) => t.status === 'in_transit').length;
-  const criticalCount  = transfers.filter((t) => t.urgencyLevel === 'critical').length;
-  const deliveredCount = transfers.filter((t) => t.status === 'delivered').length;
+  useEffect(() => {
+    if (
+      !simulationEnabled
+    ) {
+      return;
+    }
+
+    const interval =
+      setInterval(
+        async () => {
+          const activeTransfers =
+            transfers.filter(
+              (transfer) =>
+                transfer.status ===
+                "in_transit"
+            );
+
+          for (
+            const transfer
+            of activeTransfers
+          ) {
+            const vehicle =
+              getCoords(
+                transfer.vehicleLocation
+              );
+
+            const recipient =
+              getCoords(
+                transfer.recipientLocation
+              );
+
+            if (
+              !vehicle ||
+              !recipient
+            ) {
+              continue;
+            }
+
+            const distance =
+              Math.sqrt(
+                Math.pow(
+                  recipient.lat -
+                    vehicle.lat,
+                  2
+                ) +
+                  Math.pow(
+                    recipient.lng -
+                      vehicle.lng,
+                    2
+                  )
+              );
+
+            // ========================================
+            // ARRIVED
+            // ========================================
+
+            if (
+              distance < 0.005
+            ) {
+              try {
+                await updateDoc(
+                  doc(
+                    db,
+                    "organTransfers",
+                    transfer.id
+                  ),
+                  {
+                    status:
+                      "arrived",
+
+                    vehicleLocation:
+                      recipient,
+
+                    arrivedAt:
+                      new Date(),
+                  }
+                );
+              } catch (error) {
+                console.error(
+                  "Failed to mark transfer as arrived:",
+                  error
+                );
+              }
+
+              continue;
+            }
+
+            // ========================================
+            // MOVE VEHICLE 10% TOWARD RECIPIENT
+            // ========================================
+
+            const newLat =
+              vehicle.lat +
+              (
+                recipient.lat -
+                vehicle.lat
+              ) *
+                0.1;
+
+            const newLng =
+              vehicle.lng +
+              (
+                recipient.lng -
+                vehicle.lng
+              ) *
+                0.1;
+
+            try {
+              await updateDoc(
+                doc(
+                  db,
+                  "organTransfers",
+                  transfer.id
+                ),
+                {
+                  vehicleLocation: {
+                    lat:
+                      newLat,
+
+                    lng:
+                      newLng,
+                  },
+
+                  lastLocationUpdate:
+                    new Date(),
+                }
+              );
+            } catch (error) {
+              console.error(
+                "Simulation update failed:",
+                error
+              );
+            }
+          }
+        },
+
+        5000
+      );
+
+    return () =>
+      clearInterval(
+        interval
+      );
+  }, [
+    transfers,
+    simulationEnabled,
+  ]);
+
+  // ====================================================
+  // STATISTICS
+  // ====================================================
+
+  const inTransit =
+    transfers.filter(
+      (transfer) =>
+        transfer.status ===
+        "in_transit"
+    ).length;
+
+  const critical =
+    transfers.filter(
+      (transfer) =>
+        transfer.urgencyLevel ===
+          "critical" &&
+        transfer.status !==
+          "delivered"
+    ).length;
+
+  const delivered =
+    transfers.filter(
+      (transfer) =>
+        transfer.status ===
+        "delivered"
+    ).length;
+
+  // ====================================================
+  // PAGE UI
+  // ====================================================
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 p-4 md:p-6 space-y-6">
+    <div
+      className="
+        min-h-screen
+        bg-gradient-to-br
+        from-gray-900
+        via-blue-950
+        to-gray-900
+        text-white
+        p-6
+      "
+    >
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      {/* HEADER */}
+
+      <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6">
+
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-white flex items-center gap-2">
+
+          <h1 className="text-3xl font-bold flex items-center gap-3">
+
             🗺️ Live Organ Tracking
+
           </h1>
-          <p className="text-white/50 text-sm mt-1">Real-time organ transport monitoring</p>
+
+          <p className="text-gray-400 mt-1">
+
+            Real-time organ transport monitoring
+
+          </p>
+
         </div>
-        <div className="flex items-center gap-3">
-          {lastTick && (
-            <span className="text-white/40 text-xs">Last update: {lastTick}</span>
-          )}
+
+        <div className="flex items-center gap-4">
+
+          <span className="text-sm text-gray-400">
+
+            Last update:{" "}
+
+            {
+              lastUpdate.toLocaleTimeString()
+            }
+
+          </span>
+
           <button
-            onClick={() => setSimulation((s) => !s)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all
-              ${simulationOn
-                ? 'bg-green-500/20 text-green-400 border border-green-500/30 hover:bg-green-500/30'
-                : 'bg-white/10 text-white/50 border border-white/10 hover:bg-white/20'}`}
+            onClick={() =>
+              setSimulationEnabled(
+                (previous) =>
+                  !previous
+              )
+            }
+            className={`
+              px-4
+              py-2
+              rounded-lg
+              font-semibold
+              text-sm
+
+              ${
+                simulationEnabled
+                  ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                  : "bg-gray-700 text-gray-400"
+              }
+            `}
           >
-            {simulationOn ? '🟢 Simulation ON' : '⚪ Simulation OFF'}
+
+            {simulationEnabled
+              ? "🟢 Simulation ON"
+              : "⚪ Simulation OFF"}
+
           </button>
+
         </div>
+
       </div>
 
-      {/* Stats Row */}
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          { label: 'In Transit', value: inTransitCount, color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/20' },
-          { label: 'Critical',   value: criticalCount,  color: 'text-red-400',   bg: 'bg-red-500/10 border-red-500/20' },
-          { label: 'Delivered',  value: deliveredCount, color: 'text-green-400', bg: 'bg-green-500/10 border-green-500/20' },
-        ].map((stat) => (
-          <div key={stat.label} className={`rounded-xl p-3 border text-center ${stat.bg}`}>
-            <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
-            <p className="text-white/50 text-xs mt-0.5">{stat.label}</p>
+      {/* STATISTICS */}
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+
+        <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-5 text-center">
+
+          <Truck
+            className="mx-auto mb-2 text-yellow-400"
+            size={26}
+          />
+
+          <div className="text-3xl font-bold text-yellow-400">
+
+            {inTransit}
+
           </div>
-        ))}
-      </div>
 
-      {/* Error Banner */}
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-red-400 text-sm">
-          ⚠️ Firestore error: {error}
+          <div className="text-gray-400 text-sm">
+
+            In Transit
+
+          </div>
+
         </div>
-      )}
 
-      {/* Map — always rendered once loading is false */}
-      <div className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl" style={{ height: '420px' }}>
-        {loading ? (
-          <div className="h-full flex items-center justify-center bg-slate-800">
-            <p className="text-white/50 animate-pulse">Loading map...</p>
+        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-5 text-center">
+
+          <AlertTriangle
+            className="mx-auto mb-2 text-red-400"
+            size={26}
+          />
+
+          <div className="text-3xl font-bold text-red-400">
+
+            {critical}
+
           </div>
-        ) : (
-          <MapContainer
-            center={[22.3, 72.8]}
-            zoom={7}
-            style={{ height: '100%', width: '100%' }}
-          >
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            />
-            {transfers.map((t) => (
-              <TransferOverlay key={t.id} transfer={t} />
-            ))}
-          </MapContainer>
-        )}
+
+          <div className="text-gray-400 text-sm">
+
+            Critical
+
+          </div>
+
+        </div>
+
+        <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-5 text-center">
+
+          <CheckCircle
+            className="mx-auto mb-2 text-green-400"
+            size={26}
+          />
+
+          <div className="text-3xl font-bold text-green-400">
+
+            {delivered}
+
+          </div>
+
+          <div className="text-gray-400 text-sm">
+
+            Delivered
+
+          </div>
+
+        </div>
+
       </div>
 
-      {/* Map Legend */}
-      <div className="flex flex-wrap gap-4 text-xs text-white/60">
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-green-500 inline-block"/> Donor Location</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-red-500 inline-block"/> Recipient Location</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-amber-400 inline-block"/> Transport Vehicle</span>
-        <span className="flex items-center gap-1.5"><span className="w-4 h-0.5 bg-red-500 inline-block"/> Critical Route</span>
-        <span className="flex items-center gap-1.5"><span className="w-4 h-0.5 bg-blue-500 inline-block"/> Normal Route</span>
+      {/* ============================================ */}
+      {/* GOOGLE MAP */}
+      {/* ============================================ */}
+
+      <OrganTrackingMap
+        transfers={transfers}
+      />
+
+      {/* MAP LEGEND */}
+
+      <div className="flex flex-wrap gap-6 mt-4 text-sm text-gray-400">
+
+        <div className="flex items-center gap-2">
+
+          <span className="w-3 h-3 rounded-full bg-green-500" />
+
+          Donor Location
+
+        </div>
+
+        <div className="flex items-center gap-2">
+
+          <span className="w-3 h-3 rounded-full bg-red-500" />
+
+          Recipient Location
+
+        </div>
+
+        <div className="flex items-center gap-2">
+
+          <span className="w-3 h-3 rounded-full bg-yellow-500" />
+
+          Transport Vehicle
+
+        </div>
+
+        <div className="flex items-center gap-2">
+
+          <span className="w-5 h-1 bg-red-500" />
+
+          Critical Route
+
+        </div>
+
+        <div className="flex items-center gap-2">
+
+          <span className="w-5 h-1 bg-blue-500" />
+
+          Normal Route
+
+        </div>
+
       </div>
 
-      {/* Transfer Cards */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-white">Active Transfers</h2>
+      {/* ACTIVE TRANSFERS */}
 
-        {loading && (
-          <div className="text-white/40 text-sm animate-pulse">Fetching transfers...</div>
-        )}
+      <div className="mt-8">
 
-        {!loading && transfers.length === 0 && !error && (
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center text-white/40">
-            <p className="text-4xl mb-2">📭</p>
-            <p>No active transfers found.</p>
-            <p className="text-xs mt-1">Add documents to the <code>organTransfers</code> Firestore collection to see them here.</p>
+        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+
+          <Activity />
+
+          Active Transfers
+
+        </h2>
+
+        {transfers.length ===
+          0 && (
+
+          <div className="bg-gray-800/60 rounded-xl p-8 text-center text-gray-400">
+
+            No active organ transfers found.
+
           </div>
+
         )}
 
-        {transfers.map((t) => (
-          <div
-            key={t.id}
-            className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:bg-white/8 transition-all"
-          >
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-white font-semibold">{t.organType || 'Unknown Organ'}</span>
-                <span className="text-white/40 text-sm">·</span>
-                <span className="text-white/70 text-sm">{t.donorName} → {t.recipientName}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <UrgencyBadge level={t.urgencyLevel} />
-                <StatusBadge status={t.status} />
-              </div>
-            </div>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
 
-            {t.estimatedArrival && (
-              <p className="text-white/40 text-xs mb-1">
-                ETA: {
-                  t.estimatedArrival?.toDate
-                    ? t.estimatedArrival.toDate().toLocaleString()
-                    : new Date(t.estimatedArrival).toLocaleString()
+          {transfers.map(
+            (transfer) => (
+
+              <div
+                key={
+                  transfer.id
                 }
-              </p>
-            )}
+                className="
+                  bg-gray-800/80
+                  border
+                  border-gray-700
+                  rounded-xl
+                  p-5
+                "
+              >
 
-            <TransferTimeline status={t.status} />
-          </div>
-        ))}
+                {/* CARD HEADER */}
+
+                <div className="flex justify-between items-start gap-4">
+
+                  <div>
+
+                    <h3 className="text-xl font-bold">
+
+                      🫀{" "}
+
+                      {
+                        transfer.organType ||
+                        "Organ Transfer"
+                      }
+
+                    </h3>
+
+                    <p className="text-sm text-gray-400 mt-1">
+
+                      Transfer ID:{" "}
+
+                      {
+                        transfer.id
+                      }
+
+                    </p>
+
+                  </div>
+
+                  <span
+                    className={`
+                      px-3
+                      py-1
+                      rounded-full
+                      text-xs
+                      font-bold
+
+                      ${
+                        transfer.urgencyLevel ===
+                        "critical"
+                          ? "bg-red-500/20 text-red-400"
+                          : "bg-blue-500/20 text-blue-400"
+                      }
+                    `}
+                  >
+
+                    {
+                      transfer.urgencyLevel ||
+                      "normal"
+                    }
+
+                  </span>
+
+                </div>
+
+                {/* DONOR / RECIPIENT */}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
+
+                  <div className="bg-gray-900/50 rounded-lg p-3">
+
+                    <div className="flex items-center gap-2 text-green-400 font-semibold">
+
+                      <MapPin
+                        size={17}
+                      />
+
+                      Donor
+
+                    </div>
+
+                    <p className="mt-1">
+
+                      {
+                        transfer.donorName ||
+                        "Unknown"
+                      }
+
+                    </p>
+
+                  </div>
+
+                  <div className="bg-gray-900/50 rounded-lg p-3">
+
+                    <div className="flex items-center gap-2 text-red-400 font-semibold">
+
+                      <MapPin
+                        size={17}
+                      />
+
+                      Recipient
+
+                    </div>
+
+                    <p className="mt-1">
+
+                      {
+                        transfer.recipientName ||
+                        "Unknown"
+                      }
+
+                    </p>
+
+                  </div>
+
+                </div>
+
+                {/* TIMELINE */}
+
+                <TransferTimeline
+                  status={
+                    transfer.status
+                  }
+                />
+
+                {/* STATUS */}
+
+                <div className="flex items-center gap-2 text-sm text-gray-400 mt-3">
+
+                  <Clock
+                    size={16}
+                  />
+
+                  Current Status:
+
+                  <span className="text-white font-semibold">
+
+                    {
+                      stepLabels[
+                        transfer.status
+                      ] ||
+                      transfer.status ||
+                      "Unknown"
+                    }
+
+                  </span>
+
+                </div>
+
+              </div>
+
+            )
+          )}
+
+        </div>
+
       </div>
+
     </div>
   );
 }

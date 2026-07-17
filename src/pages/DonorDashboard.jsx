@@ -12,6 +12,8 @@ import {
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
+import PoliceVerificationPage from './PoliceVerificationPage';
+
 
 function Spinner() {
   return (
@@ -501,7 +503,8 @@ useEffect(() => {
         <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-2 mb-6 inline-flex gap-2 shadow-lg border border-white/20">
           {[
             { id: "overview", label: "Overview", icon: "📊" },
-            { id: "matches", label: "My Matches", icon: "🔗" }
+            { id: "matches", label: "My Matches", icon: "🔗" },
+            { id: "police", label: "Police Verification", icon: "🚔" }
           ].map(tab => (
             <button
               key={tab.id}
@@ -658,6 +661,8 @@ useEffect(() => {
               </div>
             </div>
           )}
+
+          {activeTab === "police" && <PoliceVerificationPage />}
         </div>
       </div>
     </div>

@@ -45,6 +45,8 @@ import ScrollToTopButton from "./components/ScrollToTopButton";
 import OrganTrackingMap from './components/OrganTrackingMap';
 import TrackingPage from './pages/TrackingPage';
 
+import PoliceVerificationPage from './pages/PoliceVerificationPage';
+
 // --------------------------------------------
 // MAIN APP WRAPPER
 // --------------------------------------------
@@ -351,8 +353,15 @@ function AnimatedRoutes() {
             </PrivateRoute>
           }
         />
-         // Inside your routes:
+         
         <Route path="/tracking" element={<TrackingPage />} />
+
+
+        <Route path="/police-verification" element={
+                  <PrivateRoute allowedRoles={["donor", "admin", "doctor"]}>
+                    <PageWrapper><PoliceVerificationPage /></PageWrapper>
+                </PrivateRoute>
+              } />
 
         {/* Hospitals */}
         <Route
