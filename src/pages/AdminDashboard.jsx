@@ -625,7 +625,7 @@ export default function AdminDashboard() {
 
         ) : viewMode === "tracking" ? (
           // ── Live Tracking View ──
-          <TrackingPage />
+          <TrackingPage userRole="admin" />
         ) : viewMode === "police" ? (
           <PoliceVerificationAdmin />
         ) : (

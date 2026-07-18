@@ -28,7 +28,7 @@ import {
 function Spinner() {
   return (
     <div className="flex justify-center py-6">
-      <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 }
@@ -133,8 +133,8 @@ function HospitalModal({ hospital, onClose, onSave }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6 rounded-t-3xl z-10">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 p-6 rounded-t-2xl z-10">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold flex items-center gap-2">
               <Building2 className="w-6 h-6" />
@@ -165,7 +165,7 @@ function HospitalModal({ hospital, onClose, onSave }) {
                   onChange={(e) =>
                     setFormData((p) => ({ ...p, name: e.target.value }))
                   }
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-blue-500 outline-none transition-all"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 dark:bg-slate-900 focus:border-emerald-500 outline-none transition-all"
                   placeholder="Metropolitan Medical Center"
                 />
               </div>
@@ -181,7 +181,7 @@ function HospitalModal({ hospital, onClose, onSave }) {
                   onChange={(e) =>
                     setFormData((p) => ({ ...p, address: e.target.value }))
                   }
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-blue-500 outline-none transition-all"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 dark:bg-slate-900 focus:border-emerald-500 outline-none transition-all"
                   placeholder="123 Medical Center Drive"
                 />
               </div>
@@ -197,7 +197,7 @@ function HospitalModal({ hospital, onClose, onSave }) {
                   onChange={(e) =>
                     setFormData((p) => ({ ...p, city: e.target.value }))
                   }
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-blue-500 outline-none transition-all"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 dark:bg-slate-900 focus:border-emerald-500 outline-none transition-all"
                 />
               </div>
 
@@ -212,7 +212,7 @@ function HospitalModal({ hospital, onClose, onSave }) {
                   onChange={(e) =>
                     setFormData((p) => ({ ...p, state: e.target.value }))
                   }
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-blue-500 outline-none transition-all"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 dark:bg-slate-900 focus:border-emerald-500 outline-none transition-all"
                 />
               </div>
 
@@ -227,7 +227,7 @@ function HospitalModal({ hospital, onClose, onSave }) {
                   onChange={(e) =>
                     setFormData((p) => ({ ...p, pincode: e.target.value }))
                   }
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-blue-500 outline-none transition-all"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 dark:bg-slate-900 focus:border-emerald-500 outline-none transition-all"
                 />
               </div>
 
@@ -240,7 +240,7 @@ function HospitalModal({ hospital, onClose, onSave }) {
                   onChange={(e) =>
                     setFormData((p) => ({ ...p, type: e.target.value }))
                   }
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-blue-500 outline-none transition-all"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 dark:bg-slate-900 focus:border-emerald-500 outline-none transition-all"
                 >
                   {hospitalTypes.map((type) => (
                     <option key={type} value={type}>
@@ -267,7 +267,7 @@ function HospitalModal({ hospital, onClose, onSave }) {
                   onChange={(e) =>
                     setFormData((p) => ({ ...p, phone: e.target.value }))
                   }
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-blue-500 outline-none transition-all"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 dark:bg-slate-900 focus:border-emerald-500 outline-none transition-all"
                 />
               </div>
 
@@ -285,7 +285,7 @@ function HospitalModal({ hospital, onClose, onSave }) {
                       emergencyContact: e.target.value,
                     }))
                   }
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-blue-500 outline-none transition-all"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 dark:bg-slate-900 focus:border-emerald-500 outline-none transition-all"
                 />
               </div>
 
@@ -299,7 +299,7 @@ function HospitalModal({ hospital, onClose, onSave }) {
                   onChange={(e) =>
                     setFormData((p) => ({ ...p, email: e.target.value }))
                   }
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-blue-500 outline-none transition-all"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 dark:bg-slate-900 focus:border-emerald-500 outline-none transition-all"
                 />
               </div>
 
@@ -313,7 +313,7 @@ function HospitalModal({ hospital, onClose, onSave }) {
                   onChange={(e) =>
                     setFormData((p) => ({ ...p, website: e.target.value }))
                   }
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-blue-500 outline-none transition-all"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 dark:bg-slate-900 focus:border-emerald-500 outline-none transition-all"
                 />
               </div>
             </div>
@@ -333,7 +333,7 @@ function HospitalModal({ hospital, onClose, onSave }) {
                   onChange={(e) =>
                     setFormData((p) => ({ ...p, beds: e.target.value }))
                   }
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-blue-500 outline-none transition-all"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 dark:bg-slate-900 focus:border-emerald-500 outline-none transition-all"
                 />
               </div>
 
@@ -350,7 +350,7 @@ function HospitalModal({ hospital, onClose, onSave }) {
                       established: e.target.value,
                     }))
                   }
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-blue-500 outline-none transition-all"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 dark:bg-slate-900 focus:border-emerald-500 outline-none transition-all"
                   placeholder="1995"
                 />
               </div>
@@ -368,7 +368,7 @@ function HospitalModal({ hospital, onClose, onSave }) {
                       accreditation: e.target.value,
                     }))
                   }
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-blue-500 outline-none transition-all"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 dark:bg-slate-900 focus:border-emerald-500 outline-none transition-all"
                   placeholder="NABH, JCI"
                 />
               </div>
@@ -382,13 +382,13 @@ function HospitalModal({ hospital, onClose, onSave }) {
               {commonDepartments.map((dept) => (
                 <label
                   key={dept}
-                  className="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-all"
+                  className="flex items-center gap-2 p-3 bg-gray-50 dark:bg-slate-800/50 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-all"
                 >
                   <input
                     type="checkbox"
                     checked={formData.departments.includes(dept)}
                     onChange={() => handleDepartmentToggle(dept)}
-                    className="w-4 h-4 text-blue-600 rounded"
+                    className="w-4 h-4 text-emerald-600 rounded"
                   />
                   <span className="text-sm">{dept}</span>
                 </label>
@@ -403,13 +403,13 @@ function HospitalModal({ hospital, onClose, onSave }) {
               {commonFacilities.map((facility) => (
                 <label
                   key={facility}
-                  className="flex items-center gap-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-all"
+                  className="flex items-center gap-2 p-3 bg-gray-50 dark:bg-slate-800/50 rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-all"
                 >
                   <input
                     type="checkbox"
                     checked={formData.facilities.includes(facility)}
                     onChange={() => handleFacilityToggle(facility)}
-                    className="w-4 h-4 text-blue-600 rounded"
+                    className="w-4 h-4 text-emerald-600 rounded"
                   />
                   <span className="text-sm">{facility}</span>
                 </label>
@@ -425,7 +425,7 @@ function HospitalModal({ hospital, onClose, onSave }) {
               onChange={(e) =>
                 setFormData((p) => ({ ...p, status: e.target.value }))
               }
-              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-blue-500 outline-none transition-all"
+              className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 dark:bg-slate-900 focus:border-emerald-500 outline-none transition-all"
             >
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
@@ -433,17 +433,17 @@ function HospitalModal({ hospital, onClose, onSave }) {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex justify-end gap-3 pt-6 border-t border-slate-200 dark:border-slate-700">
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-3 bg-gray-200 dark:bg-gray-700 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all font-medium"
+              className="px-6 py-3 bg-gray-200 dark:bg-slate-800 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all font-medium"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:shadow-lg transition-all font-medium"
+              className="px-6 py-3 bg-emerald-600 text-white rounded-xl hover:shadow-lg transition-all font-medium"
             >
               {hospital ? "Update Hospital" : "Add Hospital"}
             </button>
@@ -619,7 +619,7 @@ export default function HospitalDashboard() {
   const types = [...new Set(hospitals.map((h) => h.type).filter(Boolean))];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 dark:text-white">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
       {showModal && (
         <HospitalModal
           hospital={selectedHospital}
@@ -635,10 +635,10 @@ export default function HospitalDashboard() {
         {/* Header */}
         <div className="mb-8 flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+            <h1 className="text-4xl font-bold bg-emerald-600 bg-clip-text text-transparent mb-2">
               Hospital Management
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="text-slate-600 dark:text-slate-400">
               Manage hospital information and facilities
             </p>
           </div>
@@ -677,23 +677,23 @@ export default function HospitalDashboard() {
         </div>
 
         {/* Filters and Actions */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg mb-6">
+        <div className="bg-white dark:bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-lg mb-6">
           <div className="flex flex-wrap gap-4 items-center mb-4">
             <div className="flex-1 min-w-[250px] relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input
                 type="text"
                 placeholder="Search hospitals..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-slate-800 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
               />
             </div>
 
             <select
               value={filterCity}
               onChange={(e) => setFilterCity(e.target.value)}
-              className="px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white cursor-pointer focus:ring-2 focus:ring-blue-500"
+              className="px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-slate-800 dark:text-white cursor-pointer focus:ring-2 focus:ring-emerald-500"
             >
               <option value="">All Cities</option>
               {cities.map((city) => (
@@ -706,7 +706,7 @@ export default function HospitalDashboard() {
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              className="px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white cursor-pointer focus:ring-2 focus:ring-blue-500"
+              className="px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-slate-800 dark:text-white cursor-pointer focus:ring-2 focus:ring-emerald-500"
             >
               <option value="">All Types</option>
               {types.map((type) => (
@@ -719,7 +719,7 @@ export default function HospitalDashboard() {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white cursor-pointer focus:ring-2 focus:ring-blue-500"
+              className="px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-slate-800 dark:text-white cursor-pointer focus:ring-2 focus:ring-emerald-500"
             >
               <option value="">All Status</option>
               <option value="Active">Active</option>
@@ -746,7 +746,7 @@ export default function HospitalDashboard() {
                 setSelectedHospital(null);
                 setShowModal(true);
               }}
-              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all flex items-center gap-2"
+              className="px-4 py-2.5 bg-transparent text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 rounded-xl font-semibold hover:bg-emerald-500/10 hover:border-emerald-500 transition-all flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
               Add Hospital
@@ -754,7 +754,7 @@ export default function HospitalDashboard() {
 
             <button
               onClick={exportToCSV}
-              className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+              className="px-4 py-2.5 bg-transparent text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 rounded-xl font-semibold hover:bg-emerald-500/10 hover:border-emerald-500 transition-all flex items-center gap-2"
             >
               <Download className="w-4 h-4" />
               Export CSV
@@ -767,7 +767,7 @@ export default function HospitalDashboard() {
           {filteredHospitals.map((hospital) => (
             <div
               key={hospital.id}
-              className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 hover:shadow-xl transition-all"
+              className="bg-white dark:bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-6 hover:shadow-xl transition-all"
             >
               <div className="flex justify-between items-start mb-4">
                 <div className="flex-1">
@@ -778,7 +778,7 @@ export default function HospitalDashboard() {
                     className={`px-3 py-1 rounded-full text-xs font-semibold ${
                       hospital.status === "Active"
                         ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                        : "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400"
+                        : "bg-gray-100 text-gray-800 dark:bg-slate-950/30 dark:text-slate-400"
                     }`}
                   >
                     {hospital.status}
@@ -790,7 +790,7 @@ export default function HospitalDashboard() {
                       setSelectedHospital(hospital);
                       setShowModal(true);
                     }}
-                    className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    className="p-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
@@ -805,36 +805,36 @@ export default function HospitalDashboard() {
 
               <div className="space-y-3">
                 <div className="flex items-start gap-2 text-sm">
-                  <MapPin className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
-                  <span className="text-gray-600 dark:text-gray-400">
+                  <MapPin className="w-4 h-4 text-slate-500 mt-0.5 flex-shrink-0" />
+                  <span className="text-slate-600 dark:text-slate-400">
                     {hospital.address}, {hospital.city}, {hospital.state} -{" "}
                     {hospital.pincode}
                   </span>
                 </div>
 
                 <div className="flex items-center gap-2 text-sm">
-                  <Phone className="w-4 h-4 text-gray-500" />
-                  <span className="text-gray-600 dark:text-gray-400">
+                  <Phone className="w-4 h-4 text-slate-500" />
+                  <span className="text-slate-600 dark:text-slate-400">
                     {hospital.phone}
                   </span>
                 </div>
 
                 <div className="flex items-center gap-2 text-sm">
-                  <Mail className="w-4 h-4 text-gray-500" />
-                  <span className="text-gray-600 dark:text-gray-400">
+                  <Mail className="w-4 h-4 text-slate-500" />
+                  <span className="text-slate-600 dark:text-slate-400">
                     {hospital.email || "N/A"}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex items-center gap-4 pt-3 border-t border-slate-200 dark:border-slate-700">
                   <div className="text-sm">
-                    <span className="text-gray-500">Type:</span>
+                    <span className="text-slate-500">Type:</span>
                     <span className="ml-2 font-semibold">
                       {hospital.type}
                     </span>
                   </div>
                   <div className="text-sm">
-                    <span className="text-gray-500">Beds:</span>
+                    <span className="text-slate-500">Beds:</span>
                     <span className="ml-2 font-semibold">
                       {hospital.beds || "—"}
                     </span>
@@ -850,13 +850,13 @@ export default function HospitalDashboard() {
                       {hospital.departments.slice(0, 4).map((dept) => (
                         <span
                           key={dept}
-                          className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 rounded text-xs"
+                          className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-emerald-400 rounded text-xs"
                         >
                           {dept}
                         </span>
                       ))}
                       {hospital.departments.length > 4 && (
-                        <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded text-xs">
+                        <span className="px-2 py-1 bg-gray-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded text-xs">
                           +{hospital.departments.length - 4} more
                         </span>
                       )}
@@ -879,7 +879,7 @@ export default function HospitalDashboard() {
                         </span>
                       ))}
                       {hospital.facilities.length > 3 && (
-                        <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded text-xs">
+                        <span className="px-2 py-1 bg-gray-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded text-xs">
                           +{hospital.facilities.length - 3} more
                         </span>
                       )}
@@ -891,7 +891,7 @@ export default function HospitalDashboard() {
           ))}
 
           {filteredHospitals.length === 0 && !loading && (
-            <div className="col-span-2 text-center py-12 text-gray-500">
+            <div className="col-span-2 text-center py-12 text-slate-500">
               No hospitals found
             </div>
           )}

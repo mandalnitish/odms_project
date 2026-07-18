@@ -1,1163 +1,3257 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { MessageCircle, Send, X, Minimize2, Maximize2, Users, Search, Phone, Video, MoreVertical, Paperclip, Smile, Check, CheckCheck, ArrowLeft } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
-import { db } from '../firebase';
-import { collection, addDoc, query, where, orderBy, onSnapshot, updateDoc, doc, getDocs, serverTimestamp } from 'firebase/firestore';
+// ------------------------------------------------------------
+// src/components/ChatSystem.jsx
+// ODMS WhatsApp-Style Real-Time Chat System
+// Light + Dark Mode
+// Smooth Animations
+// Delete for Me + Delete for Everyone
+// ------------------------------------------------------------
+
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useCallback,
+} from "react";
+
+import {
+  Archive,
+  ArrowLeft,
+  Check,
+  CheckCheck,
+  ChevronDown,
+  Inbox,
+  MessageCircle,
+  MoreVertical,
+  Phone,
+  Plus,
+  Search,
+  Send,
+  Settings,
+  Smile,
+  Trash2,
+  Users,
+  Video,
+  X,
+} from "lucide-react";
+
+import {
+  addDoc,
+  arrayUnion,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  onSnapshot,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+
+import { db } from "../firebase";
+import { useAuth } from "../context/AuthContext";
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+const getTimestampMillis = (timestamp) => {
+  if (!timestamp) return 0;
+
+  try {
+    if (typeof timestamp.toMillis === "function") {
+      return timestamp.toMillis();
+    }
+
+    if (typeof timestamp.toDate === "function") {
+      return timestamp.toDate().getTime();
+    }
+
+    if (timestamp.seconds) {
+      return timestamp.seconds * 1000;
+    }
+
+    if (typeof timestamp === "number") {
+      return timestamp;
+    }
+
+    const parsed = new Date(timestamp).getTime();
+
+    return Number.isNaN(parsed) ? 0 : parsed;
+  } catch {
+    return 0;
+  }
+};
+
+const getDateFromTimestamp = (timestamp) => {
+  const millis = getTimestampMillis(timestamp);
+
+  if (!millis) return null;
+
+  const date = new Date(millis);
+
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+// ============================================================
+// COMPONENT
+// ============================================================
 
 const ChatSystem = () => {
   const { user } = useAuth();
+
+  // ==========================================================
+  // UI STATE
+  // ==========================================================
+
   const [isOpen, setIsOpen] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
-  const [conversations, setConversations] = useState([]);
-  const [selectedChat, setSelectedChat] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileShowChat, setMobileShowChat] = useState(false);
+
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [newMessage, setNewMessage] = useState("");
+
+  // Message menu / delete states
+  const [activeMessageMenu, setActiveMessageMenu] = useState(null);
+  const [deleteModal, setDeleteModal] = useState(null);
+  const [deletingMessage, setDeletingMessage] = useState(false);
+
+  // ==========================================================
+  // DATA STATE
+  // ==========================================================
+
+  const [currentUserData, setCurrentUserData] = useState(null);
+  const [currentUserRole, setCurrentUserRole] = useState("");
+
   const [allUsers, setAllUsers] = useState([]);
   const [allowedUsers, setAllowedUsers] = useState([]);
   const [matches, setMatches] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [currentUserRole, setCurrentUserRole] = useState('');
-  const [isMobile, setIsMobile] = useState(false);
-  const messagesEndRef = useRef(null);
 
-  // Detect mobile device
+  const [conversations, setConversations] = useState([]);
+  const [selectedChat, setSelectedChat] = useState(null);
+
+  const [messages, setMessages] = useState([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // ==========================================================
+  // REFS
+  // ==========================================================
+
+  const messagesContainerRef = useRef(null);
+  const inputRef = useRef(null);
+
+  // ==========================================================
+  // MOBILE DETECTION
+  // ==========================================================
+
   useEffect(() => {
-    const checkMobile = () => {
+    const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+
+    handleResize();
+
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
   }, []);
 
-  // Scroll to bottom of messages
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  // ==========================================================
+  // CLOSE MESSAGE MENU WHEN CLICKING OUTSIDE
+  // ==========================================================
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    const handleClickOutside = () => {
+      setActiveMessageMenu(null);
+    };
 
-  // Get current user's role
+    if (activeMessageMenu) {
+      document.addEventListener("click", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("click", handleClickOutside);
+    };
+  }, [activeMessageMenu]);
+
+  // ==========================================================
+  // LOAD CURRENT USER
+  // ==========================================================
+
   useEffect(() => {
-    if (!user) return;
+    if (!user?.uid) return;
 
     const loadCurrentUser = async () => {
       try {
-        const usersRef = collection(db, 'users');
-        const q = query(usersRef, where('__name__', '==', user.uid));
-        const snapshot = await getDocs(q);
-        
-        if (!snapshot.empty) {
-          const userData = snapshot.docs[0].data();
-          setCurrentUserRole(userData.role || 'user');
+        const userRef = doc(db, "users", user.uid);
+        const snapshot = await getDoc(userRef);
+
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+
+          setCurrentUserData({
+            id: snapshot.id,
+            ...data,
+          });
+
+          setCurrentUserRole(data.role || "user");
+        } else {
+          setCurrentUserData({
+            id: user.uid,
+            name: user.displayName || user.email || "User",
+            email: user.email || "",
+            role: "user",
+          });
+
+          setCurrentUserRole("user");
         }
       } catch (error) {
-        console.error('Error loading current user:', error);
+        console.error("Error loading current user:", error);
       }
     };
 
     loadCurrentUser();
   }, [user]);
 
-  // Load matches (for donors and recipients)
+  // ==========================================================
+  // LOAD ALL USERS
+  // ==========================================================
+
   useEffect(() => {
-    if (!user || !currentUserRole) return;
-    if (currentUserRole !== 'donor' && currentUserRole !== 'recipient') return;
-
-    const matchesRef = collection(db, 'matches');
-    const q = query(
-      matchesRef,
-      where(currentUserRole === 'donor' ? 'donorId' : 'recipientId', '==', user.uid)
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const matchData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      
-      setMatches(matchData);
-    });
-
-    return () => unsubscribe();
-  }, [user, currentUserRole]);
-
-  // Load all users first
-  useEffect(() => {
-    if (!user) return;
+    if (!user?.uid) return;
 
     const loadUsers = async () => {
       try {
-        const usersRef = collection(db, 'users');
-        const snapshot = await getDocs(usersRef);
-        const allUsersData = snapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() }))
-          .filter(u => u.id !== user.uid);
+        const snapshot = await getDocs(collection(db, "users"));
 
-        setAllUsers(allUsersData);
+        const loadedUsers = snapshot.docs
+          .map((userDoc) => ({
+            id: userDoc.id,
+            ...userDoc.data(),
+          }))
+          .filter((profile) => profile.id !== user.uid);
+
+        setAllUsers(loadedUsers);
       } catch (error) {
-        console.error('Error loading users:', error);
+        console.error("Error loading users:", error);
       }
     };
 
     loadUsers();
   }, [user]);
 
-  // Load allowed users based on role and matches
+  // ==========================================================
+  // LOAD MATCHES
+  // ==========================================================
+
   useEffect(() => {
-    if (!user || !currentUserRole || allUsers.length === 0) return;
+    if (!user?.uid || !currentUserRole) return;
 
-    const loadAllowedUsers = () => {
-      try {
-        let allowed = [];
-
-        if (currentUserRole === 'doctor' || currentUserRole === 'admin') {
-          allowed = allUsers;
-        } else if (currentUserRole === 'donor') {
-          const matchedRecipientIds = matches.map(m => m.recipientId);
-          allowed = allUsers.filter(u => 
-            u.role === 'doctor' || 
-            u.role === 'admin' ||
-            matchedRecipientIds.includes(u.id)
-          );
-        } else if (currentUserRole === 'recipient') {
-          const matchedDonorIds = matches.map(m => m.donorId);
-          allowed = allUsers.filter(u => 
-            u.role === 'doctor' || 
-            u.role === 'admin' ||
-            matchedDonorIds.includes(u.id)
-          );
-        }
-
-        setAllowedUsers(allowed);
-      } catch (error) {
-        console.error('Error filtering allowed users:', error);
-      }
-    };
-
-    loadAllowedUsers();
-  }, [user, currentUserRole, matches, allUsers]);
-
-  // Load conversations
-  useEffect(() => {
-    if (!user) return;
-
-    const conversationsRef = collection(db, 'conversations');
-    const q = query(
-      conversationsRef,
-      where('participants', 'array-contains', user.uid)
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const convos = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      
-      convos.sort((a, b) => {
-        const timeA = a.lastMessageTime?.toDate?.() || new Date(0);
-        const timeB = b.lastMessageTime?.toDate?.() || new Date(0);
-        return timeB - timeA;
-      });
-      
-      setConversations(convos);
-
-      const unread = convos.reduce((count, convo) => {
-        const unreadForUser = convo.unreadCount?.[user.uid] || 0;
-        return count + unreadForUser;
-      }, 0);
-      setUnreadCount(unread);
-    });
-
-    return () => unsubscribe();
-  }, [user]);
-
-  // Load messages for selected chat
-  useEffect(() => {
-    if (!selectedChat) return;
-
-    const messagesRef = collection(db, 'messages');
-    const q = query(
-      messagesRef,
-      where('conversationId', '==', selectedChat.id),
-      orderBy('timestamp', 'asc')
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      
-      setMessages(msgs);
-      markAsRead(selectedChat.id);
-    }, (error) => {
-      console.error('Error loading messages:', error);
-      if (error.code === 'failed-precondition') {
-        const simpleQuery = query(
-          messagesRef,
-          where('conversationId', '==', selectedChat.id)
-        );
-        
-        const unsubscribeSimple = onSnapshot(simpleQuery, (snapshot) => {
-          const msgs = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-          msgs.sort((a, b) => {
-            const timeA = a.timestamp?.toDate?.() || new Date(0);
-            const timeB = b.timestamp?.toDate?.() || new Date(0);
-            return timeA - timeB;
-          });
-          setMessages(msgs);
-          markAsRead(selectedChat.id);
-        });
-        
-        return unsubscribeSimple;
-      }
-    });
-
-    return () => unsubscribe();
-  }, [selectedChat]);
-
-  // Mark conversation as read
-  const markAsRead = async (conversationId) => {
-    if (!user) return;
-
-    try {
-      const convoRef = doc(db, 'conversations', conversationId);
-      await updateDoc(convoRef, {
-        [`unreadCount.${user.uid}`]: 0
-      });
-
-      const messagesRef = collection(db, 'messages');
-      const q = query(
-        messagesRef,
-        where('conversationId', '==', conversationId),
-        where('senderId', '!=', user.uid),
-        where('read', '==', false)
-      );
-      
-      const snapshot = await getDocs(q);
-      snapshot.docs.forEach(async (messageDoc) => {
-        await updateDoc(doc(db, 'messages', messageDoc.id), { read: true });
-      });
-    } catch (error) {
-      console.error('Error marking as read:', error);
+    if (!["donor", "recipient"].includes(currentUserRole)) {
+      setMatches([]);
+      return;
     }
-  };
 
-  // Check if user is allowed to chat
-  const isUserAllowed = (userId) => {
-    return allowedUsers.some(u => u.id === userId);
-  };
+    const field =
+      currentUserRole === "donor"
+        ? "donorId"
+        : "recipientId";
 
-  // Start new conversation
-  const startConversation = async (otherUser) => {
-    try {
-      if (!isUserAllowed(otherUser.id)) {
-        alert(`You can only chat with ${
-          currentUserRole === 'donor' ? 'matched recipients and doctors' :
-          currentUserRole === 'recipient' ? 'matched donors and doctors' :
-          'everyone'
-        }`);
-        return;
+    const matchesQuery = query(
+      collection(db, "matches"),
+      where(field, "==", user.uid)
+    );
+
+    const unsubscribe = onSnapshot(
+      matchesQuery,
+      (snapshot) => {
+        const loadedMatches = snapshot.docs.map((matchDoc) => ({
+          id: matchDoc.id,
+          ...matchDoc.data(),
+        }));
+
+        setMatches(loadedMatches);
+      },
+      (error) => {
+        console.error("Error loading matches:", error);
       }
+    );
 
-      const existingConvo = conversations.find(c => {
-        const hasUser1 = c.participants.includes(user.uid);
-        const hasUser2 = c.participants.includes(otherUser.id);
-        return hasUser1 && hasUser2;
+    return () => unsubscribe();
+  }, [user?.uid, currentUserRole]);
+
+  // ==========================================================
+  // CALCULATE ALLOWED USERS
+  // ==========================================================
+
+  useEffect(() => {
+    if (!user?.uid || !currentUserRole) return;
+
+    let allowed = [];
+
+    if (["admin", "doctor"].includes(currentUserRole)) {
+      allowed = allUsers;
+    } else if (currentUserRole === "donor") {
+      const recipientIds = matches
+        .map((match) => match.recipientId)
+        .filter(Boolean);
+
+      allowed = allUsers.filter(
+        (otherUser) =>
+          ["admin", "doctor"].includes(otherUser.role) ||
+          recipientIds.includes(otherUser.id)
+      );
+    } else if (currentUserRole === "recipient") {
+      const donorIds = matches
+        .map((match) => match.donorId)
+        .filter(Boolean);
+
+      allowed = allUsers.filter(
+        (otherUser) =>
+          ["admin", "doctor"].includes(otherUser.role) ||
+          donorIds.includes(otherUser.id)
+      );
+    } else {
+      allowed = allUsers;
+    }
+
+    setAllowedUsers(allowed);
+  }, [
+    user?.uid,
+    currentUserRole,
+    allUsers,
+    matches,
+  ]);
+
+  // ==========================================================
+  // LOAD CONVERSATIONS
+  // ==========================================================
+
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const conversationsQuery = query(
+      collection(db, "conversations"),
+      where("participants", "array-contains", user.uid)
+    );
+
+    const unsubscribe = onSnapshot(
+      conversationsQuery,
+      (snapshot) => {
+        const loadedConversations = snapshot.docs.map(
+          (conversationDoc) => ({
+            id: conversationDoc.id,
+            ...conversationDoc.data(),
+          })
+        );
+
+        loadedConversations.sort((a, b) => {
+          const timeA =
+            getTimestampMillis(a.lastMessageTime) ||
+            getTimestampMillis(a.createdAt);
+
+          const timeB =
+            getTimestampMillis(b.lastMessageTime) ||
+            getTimestampMillis(b.createdAt);
+
+          return timeB - timeA;
+        });
+
+        setConversations(loadedConversations);
+
+        const totalUnread = loadedConversations.reduce(
+          (total, conversation) =>
+            total + (conversation.unreadCount?.[user.uid] || 0),
+          0
+        );
+
+        setUnreadCount(totalUnread);
+
+        setSelectedChat((currentSelectedChat) => {
+          if (!currentSelectedChat) return null;
+
+          return (
+            loadedConversations.find(
+              (conversation) =>
+                conversation.id === currentSelectedChat.id
+            ) || currentSelectedChat
+          );
+        });
+      },
+      (error) => {
+        console.error("Error loading conversations:", error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  // ==========================================================
+  // MARK CONVERSATION READ
+  // ==========================================================
+
+  const markConversationAsRead = useCallback(
+    async (conversationId) => {
+      if (!user?.uid || !conversationId) return;
+
+      try {
+        await updateDoc(
+          doc(db, "conversations", conversationId),
+          {
+            [`unreadCount.${user.uid}`]: 0,
+          }
+        );
+
+        const messagesQuery = query(
+          collection(db, "messages"),
+          where("conversationId", "==", conversationId)
+        );
+
+        const snapshot = await getDocs(messagesQuery);
+
+        const updates = snapshot.docs
+          .filter((messageDoc) => {
+            const data = messageDoc.data();
+
+            return (
+              data.senderId !== user.uid &&
+              data.read !== true
+            );
+          })
+          .map((messageDoc) =>
+            updateDoc(
+              doc(db, "messages", messageDoc.id),
+              { read: true }
+            )
+          );
+
+        await Promise.all(updates);
+      } catch (error) {
+        console.error(
+          "Error marking conversation as read:",
+          error
+        );
+      }
+    },
+    [user?.uid]
+  );
+
+  // ==========================================================
+  // LOAD SELECTED CHAT MESSAGES
+  // ==========================================================
+
+  useEffect(() => {
+    if (!user?.uid || !selectedChat?.id) {
+      setMessages([]);
+      setMessagesLoading(false);
+      return;
+    }
+
+    setMessagesLoading(true);
+
+    const messagesQuery = query(
+      collection(db, "messages"),
+      where("conversationId", "==", selectedChat.id)
+    );
+
+    const unsubscribe = onSnapshot(
+      messagesQuery,
+      (snapshot) => {
+        const loadedMessages = snapshot.docs
+          .map((messageDoc) => ({
+            id: messageDoc.id,
+            ...messageDoc.data(),
+          }))
+          .filter(
+            (message) =>
+              !message.deletedFor?.includes(user.uid)
+          );
+
+        loadedMessages.sort(
+          (a, b) =>
+            getTimestampMillis(a.timestamp) -
+            getTimestampMillis(b.timestamp)
+        );
+
+        setMessages(loadedMessages);
+        setMessagesLoading(false);
+
+        markConversationAsRead(selectedChat.id);
+      },
+      (error) => {
+        console.error("Error loading messages:", error);
+
+        setMessages([]);
+        setMessagesLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [
+    selectedChat?.id,
+    user?.uid,
+    markConversationAsRead,
+  ]);
+
+  // ==========================================================
+  // SCROLL MESSAGE AREA
+  // ==========================================================
+
+  useEffect(() => {
+    if (messagesLoading || messages.length === 0) return;
+
+    const timer = setTimeout(() => {
+      const container = messagesContainerRef.current;
+
+      if (!container) return;
+
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: "smooth",
       });
+    }, 100);
 
-      if (existingConvo) {
-        setSelectedChat(existingConvo);
-        setSearchQuery('');
+    return () => clearTimeout(timer);
+  }, [
+    messages.length,
+    messagesLoading,
+    selectedChat?.id,
+  ]);
+
+  // ==========================================================
+  // USER HELPERS
+  // ==========================================================
+
+  const getUserName = (profile) => {
+    if (!profile) return "User";
+
+    return (
+      profile.fullName ||
+      profile.name ||
+      profile.displayName ||
+      profile.email ||
+      "User"
+    );
+  };
+
+  const getInitial = (name) =>
+    name?.trim()?.charAt(0)?.toUpperCase() || "U";
+
+  const getOtherUser = (conversation) => {
+    if (!conversation || !user?.uid) {
+      return {
+        id: "",
+        name: "Unknown User",
+        role: "user",
+      };
+    }
+
+    const otherUserId = conversation.participants?.find(
+      (participantId) => participantId !== user.uid
+    );
+
+    const details =
+      conversation.participantDetails?.[otherUserId] || {};
+
+    const liveUser = allUsers.find(
+      (profile) => profile.id === otherUserId
+    );
+
+    return {
+      id: otherUserId,
+
+      name:
+        details.name ||
+        getUserName(liveUser) ||
+        "Unknown User",
+
+      role:
+        details.role ||
+        liveUser?.role ||
+        "user",
+
+      email:
+        details.email ||
+        liveUser?.email ||
+        "",
+
+      photoURL:
+        details.photoURL ||
+        liveUser?.photoURL ||
+        liveUser?.profileImage ||
+        "",
+    };
+  };
+
+  // ==========================================================
+  // START CONVERSATION
+  // ==========================================================
+
+  const startConversation = async (otherUser) => {
+    if (!user?.uid || !otherUser?.id) return;
+
+    try {
+      const existingConversation = conversations.find(
+        (conversation) =>
+          conversation.participants?.includes(user.uid) &&
+          conversation.participants?.includes(otherUser.id)
+      );
+
+      if (existingConversation) {
+        setSelectedChat(existingConversation);
+        setSearchQuery("");
+        setMobileShowChat(true);
         return;
       }
 
-      const conversationsRef = collection(db, 'conversations');
-      const newConvoData = {
-        participants: [user.uid, otherUser.id],
+      const currentName =
+        getUserName(currentUserData) ||
+        user.displayName ||
+        user.email ||
+        "User";
+
+      const otherName = getUserName(otherUser);
+
+      const conversationData = {
+        participants: [
+          user.uid,
+          otherUser.id,
+        ],
+
         participantDetails: {
           [user.uid]: {
-            name: user.displayName || user.email,
-            role: currentUserRole
+            name: currentName,
+            email:
+              user.email ||
+              currentUserData?.email ||
+              "",
+            role:
+              currentUserRole ||
+              "user",
           },
+
           [otherUser.id]: {
-            name: otherUser.fullName || otherUser.email,
-            role: otherUser.role || 'user'
-          }
+            name: otherName,
+            email:
+              otherUser.email ||
+              "",
+            role:
+              otherUser.role ||
+              "user",
+          },
         },
-        lastMessage: '',
+
+        lastMessage: "",
         lastMessageTime: serverTimestamp(),
+        lastSenderId: "",
+
         unreadCount: {
           [user.uid]: 0,
-          [otherUser.id]: 0
+          [otherUser.id]: 0,
         },
-        createdAt: serverTimestamp()
+
+        createdAt: serverTimestamp(),
       };
 
-      const newConvo = await addDoc(conversationsRef, newConvoData);
+      const documentReference = await addDoc(
+        collection(db, "conversations"),
+        conversationData
+      );
 
       setSelectedChat({
-        id: newConvo.id,
-        participants: [user.uid, otherUser.id],
-        participantDetails: {
-          [user.uid]: {
-            name: user.displayName || user.email,
-            role: currentUserRole
-          },
-          [otherUser.id]: {
-            name: otherUser.fullName || otherUser.email,
-            role: otherUser.role || 'user'
-          }
-        }
+        id: documentReference.id,
+        ...conversationData,
       });
-      
-      setSearchQuery('');
+
+      setSearchQuery("");
+      setMobileShowChat(true);
     } catch (error) {
-      console.error('Error starting conversation:', error);
-      alert('Failed to start conversation. Please try again.');
+      console.error("Error starting conversation:", error);
+
+      alert("Unable to start conversation.");
     }
   };
 
-  // Send message
+  // ==========================================================
+  // SEND MESSAGE
+  // ==========================================================
+
   const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedChat) return;
+    const text = newMessage.trim();
+
+    if (!text || !user?.uid || !selectedChat?.id) return;
+
+    const messageText = text;
+
+    setNewMessage("");
 
     try {
-      const messagesRef = collection(db, 'messages');
-      await addDoc(messagesRef, {
-        conversationId: selectedChat.id,
-        senderId: user.uid,
-        senderName: user.displayName || user.email,
-        text: newMessage,
-        timestamp: serverTimestamp(),
-        read: false
-      });
+      await addDoc(
+        collection(db, "messages"),
+        {
+          conversationId: selectedChat.id,
+          senderId: user.uid,
 
-      const convoRef = doc(db, 'conversations', selectedChat.id);
-      const otherUserId = selectedChat.participants.find(p => p !== user.uid);
-      
-      await updateDoc(convoRef, {
-        lastMessage: newMessage,
+          senderName:
+            getUserName(currentUserData) ||
+            user.displayName ||
+            user.email ||
+            "User",
+
+          text: messageText,
+          timestamp: serverTimestamp(),
+          read: false,
+          type: "text",
+
+          // Delete system
+          deletedFor: [],
+          deletedForEveryone: false,
+        }
+      );
+
+      const otherUserId =
+        selectedChat.participants?.find(
+          (participantId) =>
+            participantId !== user.uid
+        );
+
+      const conversationUpdate = {
+        lastMessage: messageText,
         lastMessageTime: serverTimestamp(),
-        [`unreadCount.${otherUserId}`]: (selectedChat.unreadCount?.[otherUserId] || 0) + 1
-      });
+        lastSenderId: user.uid,
+        [`unreadCount.${user.uid}`]: 0,
+      };
 
-      setNewMessage('');
+      if (otherUserId) {
+        const currentUnread =
+          selectedChat.unreadCount?.[otherUserId] || 0;
+
+        conversationUpdate[
+          `unreadCount.${otherUserId}`
+        ] = currentUnread + 1;
+      }
+
+      await updateDoc(
+        doc(
+          db,
+          "conversations",
+          selectedChat.id
+        ),
+        conversationUpdate
+      );
+
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error("Error sending message:", error);
+
+      setNewMessage(messageText);
+
+      alert(
+        "Message could not be sent. Please check your Firestore permissions."
+      );
     }
   };
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
+  const handleKeyDown = (event) => {
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey
+    ) {
+      event.preventDefault();
       sendMessage();
     }
   };
 
-  // Get other user in conversation
-  const getOtherUser = (conversation) => {
-    const otherUserId = conversation.participants.find(p => p !== user.uid);
-    return conversation.participantDetails?.[otherUserId] || { name: 'Unknown', role: 'user' };
+  // ==========================================================
+  // DELETE MESSAGE
+  // ==========================================================
+
+  const openDeleteModal = (message) => {
+    setActiveMessageMenu(null);
+    setDeleteModal(message);
   };
 
-  // Filter users for search
-  const filteredUsers = allowedUsers.filter(u => {
-    const matchesSearch = u.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         u.email?.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    return searchQuery && matchesSearch;
-  });
+  const closeDeleteModal = () => {
+    if (deletingMessage) return;
 
-  // Filter conversations for search
-  const filteredConversations = conversations.filter(convo => {
-    if (!searchQuery) return true;
-    
-    const otherUser = getOtherUser(convo);
-    return otherUser.name?.toLowerCase().includes(searchQuery.toLowerCase());
-  });
-
-  // Get role badge color
-  const getRoleBadge = (role) => {
-    const colors = {
-      donor: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-      recipient: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400',
-      doctor: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-      admin: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-    };
-    return colors[role] || 'bg-gray-100 text-gray-800';
+    setDeleteModal(null);
   };
 
-  // Get relationship label
-  const getRelationship = (otherUser) => {
-    if (otherUser.role === 'doctor' || otherUser.role === 'admin') {
-      return 'Medical Team';
+  // DELETE ONLY FOR CURRENT USER
+
+  const deleteForMe = async () => {
+    if (
+      !deleteModal?.id ||
+      !user?.uid ||
+      deletingMessage
+    ) {
+      return;
     }
-    
-    const match = matches.find(m => 
-      m.donorId === otherUser.id || m.recipientId === otherUser.id
+
+    setDeletingMessage(true);
+
+    try {
+      await updateDoc(
+        doc(db, "messages", deleteModal.id),
+        {
+          deletedFor: arrayUnion(user.uid),
+        }
+      );
+
+      setDeleteModal(null);
+    } catch (error) {
+      console.error(
+        "Error deleting message for current user:",
+        error
+      );
+
+      alert(
+        "Unable to delete this message. Please check your Firestore permissions."
+      );
+    } finally {
+      setDeletingMessage(false);
+    }
+  };
+
+  // DELETE FOR EVERYONE
+
+  const deleteForEveryone = async () => {
+    if (
+      !deleteModal?.id ||
+      !user?.uid ||
+      deletingMessage
+    ) {
+      return;
+    }
+
+    if (deleteModal.senderId !== user.uid) {
+      return;
+    }
+
+    setDeletingMessage(true);
+
+    try {
+      const messageRef = doc(
+        db,
+        "messages",
+        deleteModal.id
+      );
+
+      await updateDoc(messageRef, {
+        text: "",
+        deletedForEveryone: true,
+        deletedAt: serverTimestamp(),
+      });
+
+      // If deleted message was the latest message,
+      // update conversation preview.
+
+      const visibleMessages = messages.filter(
+        (message) =>
+          message.id !== deleteModal.id &&
+          !message.deletedForEveryone
+      );
+
+      const latestMessage =
+        visibleMessages.length > 0
+          ? visibleMessages[
+              visibleMessages.length - 1
+            ]
+          : null;
+
+      const isLatestMessage =
+        messages[messages.length - 1]?.id ===
+        deleteModal.id;
+
+      if (isLatestMessage && selectedChat?.id) {
+        await updateDoc(
+          doc(
+            db,
+            "conversations",
+            selectedChat.id
+          ),
+          {
+            lastMessage: latestMessage
+              ? latestMessage.text
+              : "This message was deleted",
+
+            lastMessageTime:
+              latestMessage?.timestamp ||
+              serverTimestamp(),
+
+            lastSenderId:
+              latestMessage?.senderId || "",
+          }
+        );
+      }
+
+      setDeleteModal(null);
+    } catch (error) {
+      console.error(
+        "Error deleting message for everyone:",
+        error
+      );
+
+      alert(
+        "Unable to delete this message for everyone. Please check your Firestore permissions."
+      );
+    } finally {
+      setDeletingMessage(false);
+    }
+  };
+
+  // ==========================================================
+  // DATE / TIME
+  // ==========================================================
+
+  const formatTime = (timestamp) => {
+    const date = getDateFromTimestamp(timestamp);
+
+    if (!date) return "";
+
+    return date.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const formatConversationTime = (timestamp) => {
+    const date = getDateFromTimestamp(timestamp);
+
+    if (!date) return "";
+
+    const today = new Date();
+
+    if (date.toDateString() === today.toDateString()) {
+      return formatTime(timestamp);
+    }
+
+    const yesterday = new Date();
+
+    yesterday.setDate(today.getDate() - 1);
+
+    if (
+      date.toDateString() ===
+      yesterday.toDateString()
+    ) {
+      return "Yesterday";
+    }
+
+    return date.toLocaleDateString([], {
+      day: "2-digit",
+      month: "short",
+    });
+  };
+
+  const formatDateDivider = (timestamp) => {
+    const date = getDateFromTimestamp(timestamp);
+
+    if (!date) return "";
+
+    const today = new Date();
+
+    if (date.toDateString() === today.toDateString()) {
+      return "Today";
+    }
+
+    const yesterday = new Date();
+
+    yesterday.setDate(today.getDate() - 1);
+
+    if (
+      date.toDateString() ===
+      yesterday.toDateString()
+    ) {
+      return "Yesterday";
+    }
+
+    return date.toLocaleDateString([], {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  };
+
+  const shouldShowDateDivider = (
+    message,
+    previousMessage
+  ) => {
+    if (!message?.timestamp) return false;
+
+    if (!previousMessage?.timestamp) return true;
+
+    const currentDate =
+      getDateFromTimestamp(message.timestamp);
+
+    const previousDate =
+      getDateFromTimestamp(previousMessage.timestamp);
+
+    if (!currentDate || !previousDate) return false;
+
+    return (
+      currentDate.toDateString() !==
+      previousDate.toDateString()
     );
-    
-    if (match) {
-      return `Matched - ${match.organType} (${match.bloodGroup})`;
-    }
-    
-    return '';
   };
+
+  // ==========================================================
+  // SEARCH
+  // ==========================================================
+
+  const searchedUsers = useMemo(() => {
+    const value =
+      searchQuery.trim().toLowerCase();
+
+    if (!value) return [];
+
+    return allowedUsers.filter((profile) => {
+      const name =
+        getUserName(profile).toLowerCase();
+
+      const email =
+        (profile.email || "").toLowerCase();
+
+      return (
+        name.includes(value) ||
+        email.includes(value)
+      );
+    });
+  }, [
+    allowedUsers,
+    searchQuery,
+  ]);
+
+  // ==========================================================
+  // FILTER CONVERSATIONS
+  // ==========================================================
+
+  const filteredConversations = useMemo(() => {
+    const value =
+      searchQuery.trim().toLowerCase();
+
+    return conversations.filter(
+      (conversation) => {
+        const otherUser =
+          getOtherUser(conversation);
+
+        const matchesSearch =
+          !value ||
+          otherUser.name
+            ?.toLowerCase()
+            .includes(value) ||
+          otherUser.email
+            ?.toLowerCase()
+            .includes(value) ||
+          conversation.lastMessage
+            ?.toLowerCase()
+            .includes(value);
+
+        if (!matchesSearch) return false;
+
+        const unread =
+          conversation.unreadCount?.[user?.uid] || 0;
+
+        if (activeFilter === "unread") {
+          return unread > 0;
+        }
+
+        return true;
+      }
+    );
+  }, [
+    conversations,
+    searchQuery,
+    activeFilter,
+    user?.uid,
+    allUsers,
+  ]);
+
+  // ==========================================================
+  // AVATAR
+  // ==========================================================
+
+  const Avatar = ({
+    profile,
+    size = "w-12 h-12",
+    textSize = "text-base",
+  }) => {
+    const name =
+      profile?.name ||
+      getUserName(profile);
+
+    if (profile?.photoURL) {
+      return (
+        <img
+          src={profile.photoURL}
+          alt={name}
+          className={`
+            ${size}
+            rounded-full
+            object-cover
+            flex-shrink-0
+            transition-transform
+            duration-300
+            hover:scale-105
+          `}
+        />
+      );
+    }
+
+    return (
+      <div
+        className={`
+          ${size}
+          ${textSize}
+          rounded-full
+          flex-shrink-0
+          flex
+          items-center
+          justify-center
+          font-semibold
+          bg-[#d9fdd3]
+          dark:bg-[#005c4b]
+          text-[#008069]
+          dark:text-[#d9fdd3]
+          border
+          border-[#b7efca]
+          dark:border-[#007c69]
+          transition-all
+          duration-300
+        `}
+      >
+        {getInitial(name)}
+      </div>
+    );
+  };
+
+  if (!user) return null;
+
+  // ==========================================================
+  // FLOATING BUTTON
+  // ==========================================================
 
   if (!isOpen) {
     return (
       <button
+        type="button"
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-4 right-4 md:bottom-6 md:right-6 bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-3 md:p-4 rounded-full shadow-2xl hover:shadow-xl transition-all duration-300 hover:scale-110 z-50"
+        title="Open ODMS Chat"
+        className="
+          odms-floating-button
+          fixed
+          right-5
+          bottom-5
+          z-[9999]
+          w-14
+          h-14
+          rounded-full
+          flex
+          items-center
+          justify-center
+          text-white
+          bg-[#25d366]
+          hover:bg-[#20bd5a]
+          dark:bg-[#00a884]
+          dark:hover:bg-[#008f72]
+          shadow-xl
+          hover:scale-110
+          active:scale-90
+          transition-all
+          duration-300
+        "
       >
-        <MessageCircle size={isMobile ? 24 : 28} />
+        <MessageCircle size={26} />
+
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 md:-top-2 md:-right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 md:h-6 md:w-6 flex items-center justify-center animate-pulse">
-            {unreadCount > 9 ? '9+' : unreadCount}
+          <span className="
+            absolute
+            -top-1
+            -right-1
+            min-w-5
+            h-5
+            px-1
+            rounded-full
+            bg-red-500
+            text-white
+            text-[10px]
+            font-bold
+            flex
+            items-center
+            justify-center
+            border-2
+            border-white
+            dark:border-[#111b21]
+            animate-bounce
+          ">
+            {unreadCount > 99
+              ? "99+"
+              : unreadCount}
           </span>
         )}
       </button>
     );
   }
 
-  // Mobile full-screen view
-  if (isMobile) {
-    return (
-      <div className="fixed inset-0 z-50 bg-white dark:bg-gray-900">
-        {/* Show conversation list when no chat selected */}
-        {!selectedChat ? (
-          <div className="flex flex-col h-full">
-            {/* Mobile Header */}
-            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <MessageCircle size={24} />
-                  <h3 className="font-bold text-lg">Messages</h3>
-                </div>
-                <button onClick={() => setIsOpen(false)} className="hover:bg-white/20 p-2 rounded-lg transition-colors">
+  // ==========================================================
+  // MAIN UI
+  // ==========================================================
+
+  return (
+    <>
+      <style>{`
+
+        /* =====================================================
+           CHAT OPEN ANIMATION
+        ===================================================== */
+
+        @keyframes odmsChatOpen {
+          from {
+            opacity: 0;
+            transform: scale(0.985);
+          }
+
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+
+        /* =====================================================
+           MESSAGE ENTER ANIMATION
+        ===================================================== */
+
+        @keyframes odmsMessageEnter {
+          from {
+            opacity: 0;
+            transform: translateY(8px) scale(0.97);
+          }
+
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        /* =====================================================
+           MENU ANIMATION
+        ===================================================== */
+
+        @keyframes odmsMenuEnter {
+          from {
+            opacity: 0;
+            transform: translateY(-5px) scale(0.95);
+          }
+
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        /* =====================================================
+           MODAL ANIMATION
+        ===================================================== */
+
+        @keyframes odmsModalEnter {
+          from {
+            opacity: 0;
+            transform: scale(0.92) translateY(10px);
+          }
+
+          to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
+        }
+
+        .odms-chat-root {
+          animation: odmsChatOpen 0.25s ease-out;
+        }
+
+        .odms-message-enter {
+          animation: odmsMessageEnter 0.25s ease-out both;
+        }
+
+        .odms-message-menu {
+          animation: odmsMenuEnter 0.15s ease-out;
+        }
+
+        .odms-delete-modal {
+          animation: odmsModalEnter 0.2s ease-out;
+        }
+
+        /* =====================================================
+           SCROLLBAR
+        ===================================================== */
+
+        .odms-chat-scrollbar {
+          scrollbar-width: thin;
+          scrollbar-color:
+            rgba(11, 20, 26, 0.25)
+            transparent;
+        }
+
+        .dark .odms-chat-scrollbar {
+          scrollbar-color:
+            rgba(134, 150, 160, 0.35)
+            transparent;
+        }
+
+        .odms-chat-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        .odms-chat-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .odms-chat-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(11, 20, 26, 0.25);
+          border-radius: 999px;
+        }
+
+        .dark
+        .odms-chat-scrollbar::-webkit-scrollbar-thumb {
+          background:
+            rgba(134, 150, 160, 0.35);
+        }
+
+        /* =====================================================
+           MESSAGE MENU VISIBILITY
+        ===================================================== */
+
+        .odms-message-menu-button {
+          opacity: 0;
+          transform: translateY(-3px);
+          transition:
+            opacity 0.15s ease,
+            transform 0.15s ease;
+        }
+
+        .odms-message-bubble:hover
+        .odms-message-menu-button {
+          opacity: 1;
+          transform: translateY(0);
+        }
+
+        @media (max-width: 767px) {
+          .odms-message-menu-button {
+            opacity: 1;
+          }
+        }
+
+        /* =====================================================
+           REDUCED MOTION
+        ===================================================== */
+
+        @media (
+          prefers-reduced-motion: reduce
+        ) {
+          .odms-chat-root,
+          .odms-message-enter,
+          .odms-message-menu,
+          .odms-delete-modal {
+            animation: none !important;
+          }
+        }
+      `}</style>
+
+      <div
+        className="
+          odms-chat-root
+          fixed
+          inset-0
+          z-[9999]
+          h-[100dvh]
+          max-h-[100dvh]
+          flex
+          overflow-hidden
+          bg-[#f0f2f5]
+          dark:bg-[#0b141a]
+          text-[#111b21]
+          dark:text-[#e9edef]
+        "
+      >
+        {/* ====================================================
+            MINI LEFT NAVIGATION
+        ==================================================== */}
+
+        {!isMobile && (
+          <aside
+            className="
+              w-[64px]
+              h-full
+              flex-shrink-0
+              bg-[#f7f8fa]
+              dark:bg-[#111b21]
+              border-r
+              border-[#e9edef]
+              dark:border-[#222d34]
+              flex
+              flex-col
+              items-center
+              justify-between
+              py-3
+            "
+          >
+            <div className="flex flex-col items-center gap-3">
+
+              <button
+                type="button"
+                className="
+                  w-10
+                  h-10
+                  rounded-full
+                  flex
+                  items-center
+                  justify-center
+                  bg-[#e9edef]
+                  dark:bg-[#202c33]
+                  text-[#54656f]
+                  dark:text-[#aebac1]
+                  transition-all
+                  duration-200
+                  hover:scale-105
+                "
+              >
+                <Inbox size={20} />
+              </button>
+
+              <button
+                type="button"
+                className="
+                  w-10 h-10 rounded-full
+                  flex items-center justify-center
+                  text-[#54656f]
+                  dark:text-[#8696a0]
+                  hover:bg-[#e9edef]
+                  dark:hover:bg-[#202c33]
+                  transition-all
+                  duration-200
+                "
+              >
+                <Phone size={19} />
+              </button>
+
+              <button
+                type="button"
+                className="
+                  relative
+                  w-10 h-10 rounded-full
+                  flex items-center justify-center
+                  text-[#008069]
+                  dark:text-[#00a884]
+                  bg-[#d9fdd3]
+                  dark:bg-[#005c4b]
+                  transition-all
+                  duration-200
+                  hover:scale-105
+                "
+              >
+                <MessageCircle size={20} />
+
+                {unreadCount > 0 && (
+                  <span className="
+                    absolute
+                    top-0
+                    right-0
+                    min-w-4
+                    h-4
+                    px-1
+                    bg-[#25d366]
+                    dark:bg-[#00a884]
+                    text-white
+                    text-[9px]
+                    rounded-full
+                    flex
+                    items-center
+                    justify-center
+                  ">
+                    {unreadCount > 9
+                      ? "9+"
+                      : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                className="
+                  w-10 h-10 rounded-full
+                  flex items-center justify-center
+                  text-[#54656f]
+                  dark:text-[#8696a0]
+                  hover:bg-[#e9edef]
+                  dark:hover:bg-[#202c33]
+                  transition-all
+                "
+              >
+                <Users size={20} />
+              </button>
+
+              <button
+                type="button"
+                className="
+                  w-10 h-10 rounded-full
+                  flex items-center justify-center
+                  text-[#54656f]
+                  dark:text-[#8696a0]
+                  hover:bg-[#e9edef]
+                  dark:hover:bg-[#202c33]
+                  transition-all
+                "
+              >
+                <Archive size={19} />
+              </button>
+
+            </div>
+
+            <div className="flex flex-col items-center gap-4">
+
+              <button
+                type="button"
+                className="
+                  w-10 h-10 rounded-full
+                  flex items-center justify-center
+                  text-[#54656f]
+                  dark:text-[#8696a0]
+                  hover:bg-[#e9edef]
+                  dark:hover:bg-[#202c33]
+                  transition-all
+                "
+              >
+                <Settings size={20} />
+              </button>
+
+              <Avatar
+                profile={{
+                  name:
+                    getUserName(currentUserData) ||
+                    user.email,
+                  photoURL: user.photoURL,
+                }}
+                size="w-9 h-9"
+                textSize="text-sm"
+              />
+
+            </div>
+          </aside>
+        )}
+
+        {/* ====================================================
+            CHAT LIST
+        ==================================================== */}
+
+        <aside
+          className={`
+            ${
+              isMobile
+                ? mobileShowChat
+                  ? "hidden"
+                  : "flex w-full"
+                : "flex w-[380px]"
+            }
+            h-full
+            flex-shrink-0
+            flex-col
+            bg-white
+            dark:bg-[#111b21]
+            border-r
+            border-[#e9edef]
+            dark:border-[#222d34]
+          `}
+        >
+
+          {/* CHAT LIST HEADER */}
+
+          <div
+            className="
+              flex-shrink-0
+              px-5
+              pt-4
+              pb-3
+              bg-white
+              dark:bg-[#111b21]
+            "
+          >
+
+            <div className="flex items-center justify-between">
+
+              <h1
+                className="
+                  text-[24px]
+                  font-semibold
+                  text-[#111b21]
+                  dark:text-[#e9edef]
+                "
+              >
+                Chats
+              </h1>
+
+              <div className="flex items-center gap-1">
+
+                <button
+                  type="button"
+                  className="
+                    w-9 h-9
+                    flex items-center justify-center
+                    rounded-full
+                    text-[#54656f]
+                    dark:text-[#aebac1]
+                    hover:bg-[#f0f2f5]
+                    dark:hover:bg-[#202c33]
+                    transition-all
+                    duration-200
+                    active:scale-90
+                  "
+                >
+                  <Plus size={21} />
+                </button>
+
+                <button
+                  type="button"
+                  className="
+                    w-9 h-9
+                    flex items-center justify-center
+                    rounded-full
+                    text-[#54656f]
+                    dark:text-[#aebac1]
+                    hover:bg-[#f0f2f5]
+                    dark:hover:bg-[#202c33]
+                    transition-all
+                    duration-200
+                  "
+                >
+                  <MoreVertical size={20} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="
+                    w-9 h-9
+                    flex items-center justify-center
+                    rounded-full
+                    text-[#54656f]
+                    dark:text-[#aebac1]
+                    hover:bg-red-50
+                    dark:hover:bg-[#202c33]
+                    hover:text-red-500
+                    transition-all
+                    duration-200
+                    active:scale-90
+                  "
+                >
                   <X size={20} />
                 </button>
-              </div>
-              
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/60" size={18} />
-                <input
-                  type="text"
-                  placeholder="Search users..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50"
-                />
+
               </div>
             </div>
 
-            {/* Access Info Banner */}
-            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800">
-              <p className="text-xs text-blue-800 dark:text-blue-300">
-                {currentUserRole === 'doctor' || currentUserRole === 'admin' 
-                  ? '👨‍⚕️ You can chat with all users'
-                  : currentUserRole === 'donor'
-                  ? '💙 Chat with matched recipients and doctors'
-                  : currentUserRole === 'recipient'
-                  ? '💜 Chat with matched donors and doctors'
-                  : '💬 Search to start chatting'
+            {/* SEARCH */}
+
+            <div className="relative mt-4">
+
+              <Search
+                size={18}
+                className="
+                  absolute
+                  left-4
+                  top-1/2
+                  -translate-y-1/2
+                  text-[#667781]
+                  dark:text-[#8696a0]
+                "
+              />
+
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(event) =>
+                  setSearchQuery(event.target.value)
                 }
-              </p>
+                placeholder="Search or start a new chat"
+                className="
+                  w-full
+                  h-10
+                  pl-11
+                  pr-10
+                  rounded-lg
+                  border-0
+                  bg-[#f0f2f5]
+                  dark:bg-[#202c33]
+                  text-[#111b21]
+                  dark:text-[#e9edef]
+                  placeholder:text-[#667781]
+                  dark:placeholder:text-[#8696a0]
+                  text-sm
+                  outline-none
+                  focus:ring-1
+                  focus:ring-[#00a884]
+                  transition-all
+                  duration-200
+                "
+              />
+
             </div>
 
-            {/* Matched Users Section */}
-            {(currentUserRole === 'donor' || currentUserRole === 'recipient') && matches.length > 0 && allUsers.length > 0 && (
-              <div className="p-3 border-b border-gray-200 dark:border-gray-700">
-                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-2">
-                  <span>💝</span>
-                  {currentUserRole === 'donor' ? 'Your Matched Recipients' : 'Your Matched Donors'}
-                </p>
-                <div className="space-y-2">
-                  {(() => {
-                    const uniqueMatches = [];
-                    const seenUserIds = new Set();
-                    
-                    matches.forEach(match => {
-                      const matchedUserId = currentUserRole === 'donor' ? match.recipientId : match.donorId;
-                      if (!seenUserIds.has(matchedUserId)) {
-                        seenUserIds.add(matchedUserId);
-                        uniqueMatches.push(match);
-                      }
-                    });
-                    
-                    return uniqueMatches.map(match => {
-                      const matchedUserId = currentUserRole === 'donor' ? match.recipientId : match.donorId;
-                      const matchedUser = allUsers.find(u => u.id === matchedUserId);
-                      
-                      if (!matchedUser) return null;
-                      
-                      const hasConversation = conversations.some(c => c.participants.includes(matchedUser.id));
-                      const userMatches = matches.filter(m => 
-                        (currentUserRole === 'donor' ? m.recipientId : m.donorId) === matchedUserId
-                      );
-                      
-                      return (
-                        <button
-                          key={match.id}
-                          onClick={() => {
-                            if (hasConversation) {
-                              const existingConvo = conversations.find(c => c.participants.includes(matchedUser.id));
-                              setSelectedChat(existingConvo);
-                            } else {
-                              startConversation(matchedUser);
-                            }
-                          }}
-                          className="w-full flex items-center gap-3 p-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                        >
-                          <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-rose-500 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
-                            {(matchedUser.fullName || matchedUser.email)?.[0]?.toUpperCase()}
-                          </div>
-                          <div className="flex-1 text-left min-w-0">
-                            <p className="font-medium text-sm text-gray-900 dark:text-white truncate">{matchedUser.fullName || matchedUser.email}</p>
-                            <div className="flex items-center gap-2 flex-wrap mt-1">
-                              <span className={`text-xs px-2 py-0.5 rounded-full ${getRoleBadge(matchedUser.role)}`}>
-                                {matchedUser.role}
-                              </span>
-                              {userMatches.length === 1 ? (
-                                <span className="text-xs text-green-600 dark:text-green-400 font-medium">
-                                  {userMatches[0].organType}
-                                </span>
-                              ) : (
-                                <span className="text-xs text-green-600 dark:text-green-400 font-medium">
-                                  {userMatches.length} matches
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    });
-                  })()}
-                </div>
-              </div>
-            )}
+            {/* FILTERS */}
 
-            {/* Search Results */}
-            {searchQuery && filteredUsers.length > 0 && (
-              <div className="p-3 border-b border-gray-200 dark:border-gray-700">
-                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Search Results</p>
-                <div className="space-y-2">
-                  {filteredUsers.map(otherUser => {
-                    const hasConversation = conversations.some(c => c.participants.includes(otherUser.id));
-                    
-                    return (
-                      <button
-                        key={otherUser.id}
-                        onClick={() => {
-                          if (hasConversation) {
-                            const existingConvo = conversations.find(c => c.participants.includes(otherUser.id));
-                            setSelectedChat(existingConvo);
-                          } else {
-                            startConversation(otherUser);
-                          }
-                          setSearchQuery('');
-                        }}
-                        className="w-full flex items-center gap-3 p-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-                      >
-                        <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
-                          {(otherUser.fullName || otherUser.email)?.[0]?.toUpperCase()}
-                        </div>
-                        <div className="flex-1 text-left min-w-0">
-                          <p className="font-medium text-sm text-gray-900 dark:text-white truncate">{otherUser.fullName || otherUser.email}</p>
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${getRoleBadge(otherUser.role)}`}>
-                            {otherUser.role}
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            <div className="
+              flex
+              items-center
+              gap-2
+              mt-3
+              overflow-x-auto
+            ">
 
-            {/* Conversations List */}
-            <div className="flex-1 overflow-y-auto">
-              {conversations.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-center p-6">
-                  <MessageCircle className="text-gray-300 dark:text-gray-600 mb-3" size={48} />
-                  <p className="text-gray-500 dark:text-gray-400 mb-2">No conversations yet</p>
-                  <p className="text-sm text-gray-400 dark:text-gray-500">Search for users to start chatting</p>
-                </div>
-              ) : (
-                filteredConversations.map(convo => {
-                  const otherUser = getOtherUser(convo);
-                  const unreadForUser = convo.unreadCount?.[user.uid] || 0;
-                  
-                  return (
-                    <button
-                      key={convo.id}
-                      onClick={() => setSelectedChat(convo)}
-                      className="w-full flex items-center gap-3 p-4 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                    >
-                      <div className="relative flex-shrink-0">
-                        <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
-                          {otherUser.name[0]?.toUpperCase()}
-                        </div>
-                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"></div>
-                      </div>
-                      <div className="flex-1 text-left min-w-0">
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="font-semibold text-gray-900 dark:text-white truncate">{otherUser.name}</p>
-                          {unreadForUser > 0 && (
-                            <span className="bg-indigo-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center flex-shrink-0 ml-2">
-                              {unreadForUser > 9 ? '9+' : unreadForUser}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                          {convo.lastMessage || 'Start a conversation'}
-                        </p>
-                      </div>
-                    </button>
-                  );
-                })
-              )}
+              <button
+                type="button"
+                onClick={() => setActiveFilter("all")}
+                className={`
+                  px-4 py-1.5
+                  rounded-full
+                  border
+                  text-sm
+                  whitespace-nowrap
+                  transition-all
+                  duration-200
+                  active:scale-95
+                  ${
+                    activeFilter === "all"
+                      ? `
+                        bg-[#d9fdd3]
+                        dark:bg-[#005c4b]
+                        text-[#008069]
+                        dark:text-[#e9edef]
+                        border-[#b7efca]
+                        dark:border-[#008069]
+                      `
+                      : `
+                        bg-white
+                        dark:bg-[#111b21]
+                        border-[#d1d7db]
+                        dark:border-[#667781]
+                        text-[#111b21]
+                        dark:text-[#e9edef]
+                        hover:bg-[#f5f6f6]
+                        dark:hover:bg-[#202c33]
+                      `
+                  }
+                `}
+              >
+                All
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveFilter("unread")}
+                className={`
+                  px-4 py-1.5
+                  rounded-full
+                  border
+                  text-sm
+                  whitespace-nowrap
+                  transition-all
+                  duration-200
+                  active:scale-95
+                  ${
+                    activeFilter === "unread"
+                      ? `
+                        bg-[#d9fdd3]
+                        dark:bg-[#005c4b]
+                        text-[#008069]
+                        dark:text-[#e9edef]
+                        border-[#b7efca]
+                        dark:border-[#008069]
+                      `
+                      : `
+                        bg-white
+                        dark:bg-[#111b21]
+                        border-[#d1d7db]
+                        dark:border-[#667781]
+                        text-[#111b21]
+                        dark:text-[#e9edef]
+                        hover:bg-[#f5f6f6]
+                        dark:hover:bg-[#202c33]
+                      `
+                  }
+                `}
+              >
+                Unread
+              </button>
+
+              <button
+                type="button"
+                className="
+                  px-4 py-1.5
+                  rounded-full
+                  border
+                  border-[#d1d7db]
+                  dark:border-[#667781]
+                  bg-white
+                  dark:bg-[#111b21]
+                  text-[#111b21]
+                  dark:text-[#e9edef]
+                  text-sm
+                  whitespace-nowrap
+                  hover:bg-[#f5f6f6]
+                  dark:hover:bg-[#202c33]
+                  transition-all
+                "
+              >
+                Favourites
+              </button>
+
+              <button
+                type="button"
+                className="
+                  w-9 h-9
+                  flex-shrink-0
+                  rounded-full
+                  border
+                  border-[#d1d7db]
+                  dark:border-[#667781]
+                  bg-white
+                  dark:bg-[#111b21]
+                  text-[#54656f]
+                  dark:text-[#aebac1]
+                  flex
+                  items-center
+                  justify-center
+                  hover:bg-[#f5f6f6]
+                  dark:hover:bg-[#202c33]
+                  transition-all
+                "
+              >
+                <ChevronDown size={16} />
+              </button>
+
             </div>
           </div>
-        ) : (
-          // Chat view on mobile
-          <div className="flex flex-col h-full">
-            {/* Chat Header */}
-            <div className="border-b border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-900">
-              <div className="flex items-center gap-3">
-                <button onClick={() => setSelectedChat(null)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-                  <ArrowLeft size={20} />
-                </button>
-                <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
-                  {getOtherUser(selectedChat).name[0]?.toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-900 dark:text-white truncate">{getOtherUser(selectedChat).name}</p>
-                  <p className="text-xs text-green-600 dark:text-green-400">● Online</p>
-                </div>
-                <div className="flex gap-1">
-                  <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-                    <Phone size={18} className="text-gray-600 dark:text-gray-400" />
-                  </button>
-                  <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-                    <Video size={18} className="text-gray-600 dark:text-gray-400" />
-                  </button>
-                </div>
-              </div>
-            </div>
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-900">
-              {messages.map((msg, index) => {
-                const isOwn = msg.senderId === user.uid;
-                const showTimestamp = index === 0 || 
-                  (messages[index - 1] && 
-                   new Date(msg.timestamp?.toDate()).getTime() - new Date(messages[index - 1].timestamp?.toDate()).getTime() > 300000);
+          {/* SEARCH USERS */}
+
+          {searchQuery.trim() &&
+            searchedUsers.length > 0 && (
+
+              <div
+                className="
+                  border-y
+                  border-[#e9edef]
+                  dark:border-[#222d34]
+                  bg-white
+                  dark:bg-[#111b21]
+                "
+              >
+
+                <p
+                  className="
+                    px-5
+                    py-2
+                    text-xs
+                    font-medium
+                    text-[#008069]
+                    dark:text-[#00a884]
+                  "
+                >
+                  START NEW CHAT
+                </p>
+
+                {searchedUsers
+                  .slice(0, 5)
+                  .map((profile) => (
+
+                    <button
+                      key={profile.id}
+                      type="button"
+                      onClick={() =>
+                        startConversation(profile)
+                      }
+                      className="
+                        w-full
+                        flex
+                        items-center
+                        gap-3
+                        px-5
+                        py-3
+                        bg-white
+                        dark:bg-[#111b21]
+                        hover:bg-[#f5f6f6]
+                        dark:hover:bg-[#202c33]
+                        text-[#111b21]
+                        dark:text-[#e9edef]
+                        text-left
+                        transition-all
+                        duration-200
+                      "
+                    >
+
+                      <Avatar
+                        profile={{
+                          ...profile,
+                          name:
+                            getUserName(profile),
+                        }}
+                      />
+
+                      <div>
+
+                        <p className="font-medium">
+                          {getUserName(profile)}
+                        </p>
+
+                        <p
+                          className="
+                            text-xs
+                            text-[#667781]
+                            dark:text-[#8696a0]
+                            capitalize
+                          "
+                        >
+                          {profile.role || "User"}
+                        </p>
+
+                      </div>
+
+                    </button>
+
+                  ))}
+
+              </div>
+
+            )}
+
+          {/* CONVERSATION LIST */}
+
+          <div
+            className="
+              odms-chat-scrollbar
+              flex-1
+              min-h-0
+              overflow-y-auto
+              overscroll-contain
+              bg-white
+              dark:bg-[#111b21]
+            "
+          >
+
+            {filteredConversations.map(
+              (conversation) => {
+
+                const otherUser =
+                  getOtherUser(conversation);
+
+                const unread =
+                  conversation.unreadCount?.[
+                    user.uid
+                  ] || 0;
+
+                const selected =
+                  selectedChat?.id ===
+                  conversation.id;
 
                 return (
-                  <div key={msg.id}>
-                    {showTimestamp && msg.timestamp && (
-                      <div className="flex justify-center my-3">
-                        <span className="text-xs text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 px-3 py-1 rounded-full">
-                          {new Date(msg.timestamp.toDate()).toLocaleString()}
-                        </span>
-                      </div>
-                    )}
-                    <div className={`flex gap-2 ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                      {!isOwn && (
-                        <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-                          {msg.senderName[0]?.toUpperCase()}
-                        </div>
-                      )}
-                      <div className={`max-w-[75%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
-                        <div className={`p-3 rounded-2xl ${
-                          isOwn 
-                            ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-br-sm' 
-                            : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-sm shadow-md'
-                        }`}>
-                          <p className="text-sm break-words">{msg.text}</p>
-                        </div>
-                        <div className="flex items-center gap-1 mt-1">
-                          <span className="text-xs text-gray-400">
-                            {msg.timestamp && new Date(msg.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                          {isOwn && (
-                            msg.read ? 
-                              <CheckCheck size={14} className="text-blue-500" /> : 
-                              <Check size={14} className="text-gray-400" />
+
+                  <button
+                    key={conversation.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedChat(conversation);
+                      setMobileShowChat(true);
+                    }}
+                    className={`
+                      w-full
+                      flex
+                      items-center
+                      gap-3
+                      px-5
+                      py-3
+                      text-left
+                      transition-all
+                      duration-200
+                      ${
+                        selected
+                          ? `
+                            bg-[#f0f2f5]
+                            dark:bg-[#2a3942]
+                          `
+                          : `
+                            bg-white
+                            dark:bg-[#111b21]
+                            hover:bg-[#f5f6f6]
+                            dark:hover:bg-[#202c33]
+                          `
+                      }
+                    `}
+                  >
+
+                    <Avatar profile={otherUser} />
+
+                    <div
+                      className="
+                        flex-1
+                        min-w-0
+                        border-b
+                        border-[#e9edef]
+                        dark:border-[#222d34]
+                        pb-3
+                      "
+                    >
+
+                      <div className="
+                        flex
+                        justify-between
+                        gap-2
+                      ">
+
+                        <p
+                          className="
+                            font-medium
+                            truncate
+                            text-[#111b21]
+                            dark:text-[#e9edef]
+                          "
+                        >
+                          {otherUser.name}
+                        </p>
+
+                        <span
+                          className={`
+                            text-[11px]
+                            whitespace-nowrap
+                            ${
+                              unread > 0
+                                ? "text-[#1fa855] dark:text-[#00a884]"
+                                : "text-[#667781] dark:text-[#8696a0]"
+                            }
+                          `}
+                        >
+                          {formatConversationTime(
+                            conversation.lastMessageTime
                           )}
-                        </div>
+                        </span>
+
                       </div>
+
+                      <div
+                        className="
+                          flex
+                          justify-between
+                          items-center
+                          mt-1
+                          gap-2
+                        "
+                      >
+
+                        <p
+                          className="
+                            text-sm
+                            text-[#667781]
+                            dark:text-[#8696a0]
+                            truncate
+                          "
+                        >
+                          {conversation.lastMessage ||
+                            "Start chatting"}
+                        </p>
+
+                        {unread > 0 && (
+
+                          <span
+                            className="
+                              min-w-5
+                              h-5
+                              px-1
+                              flex-shrink-0
+                              bg-[#25d366]
+                              dark:bg-[#00a884]
+                              text-white
+                              rounded-full
+                              text-[10px]
+                              font-semibold
+                              flex
+                              items-center
+                              justify-center
+                            "
+                          >
+                            {unread}
+                          </span>
+
+                        )}
+
+                      </div>
+
                     </div>
-                  </div>
+
+                  </button>
+
                 );
-              })}
-              <div ref={messagesEndRef} />
-            </div>
+              }
+            )}
 
-            {/* Input */}
-            <div className="border-t border-gray-200 dark:border-gray-700 p-3 bg-white dark:bg-gray-900">
-              <div className="flex items-center gap-2">
-                <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-                  <Paperclip size={20} className="text-gray-600 dark:text-gray-400" />
-                </button>
-                <input
-                  type="text"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Type a message..."
-                  className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white"
-                />
-                <button
-                  onClick={sendMessage}
-                  disabled={!newMessage.trim()}
-                  className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-2 rounded-xl hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          </div>
+
+        </aside>
+
+        {/* ====================================================
+            ACTIVE CHAT
+        ==================================================== */}
+
+        <main
+          className={`
+            ${
+              isMobile
+                ? mobileShowChat
+                  ? "flex w-full"
+                  : "hidden"
+                : "flex flex-1"
+            }
+            h-full
+            min-w-0
+            flex-col
+            bg-[#efeae2]
+            dark:bg-[#0b141a]
+          `}
+        >
+
+          {selectedChat ? (
+
+            <>
+
+              {/* CHAT HEADER */}
+
+              <header
+                className="
+                  h-[64px]
+                  flex-shrink-0
+                  bg-[#f0f2f5]
+                  dark:bg-[#202c33]
+                  border-b
+                  border-[#e9edef]
+                  dark:border-[#222d34]
+                  px-4
+                  flex
+                  items-center
+                  justify-between
+                  text-[#111b21]
+                  dark:text-[#e9edef]
+                "
+              >
+
+                <div className="
+                  flex
+                  items-center
+                  gap-3
+                  min-w-0
+                ">
+
+                  {isMobile && (
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setMobileShowChat(false)
+                      }
+                      className="
+                        text-[#54656f]
+                        dark:text-[#aebac1]
+                        transition-transform
+                        active:scale-90
+                      "
+                    >
+                      <ArrowLeft size={21} />
+                    </button>
+
+                  )}
+
+                  <Avatar
+                    profile={getOtherUser(
+                      selectedChat
+                    )}
+                    size="w-10 h-10"
+                  />
+
+                  <div className="min-w-0">
+
+                    <h2
+                      className="
+                        font-medium
+                        truncate
+                        text-[#111b21]
+                        dark:text-[#e9edef]
+                      "
+                    >
+                      {getOtherUser(
+                        selectedChat
+                      ).name}
+                    </h2>
+
+                    <p
+                      className="
+                        text-xs
+                        text-[#667781]
+                        dark:text-[#8696a0]
+                        capitalize
+                      "
+                    >
+                      {getOtherUser(
+                        selectedChat
+                      ).role}
+                    </p>
+
+                  </div>
+
+                </div>
+
+                <div
+                  className="
+                    flex
+                    items-center
+                    gap-1
+                    text-[#54656f]
+                    dark:text-[#aebac1]
+                  "
                 >
-                  <Send size={20} />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
 
-  // Desktop/Tablet view
-  return (
-    <div className={`fixed ${isMinimized ? 'bottom-6 right-6' : 'bottom-6 right-6'} z-50 transition-all duration-300`}>
-      <div className={`bg-white dark:bg-gray-800 rounded-2xl shadow-2xl ${isMinimized ? 'w-80 h-16' : 'w-full md:w-[600px] lg:w-[900px] h-[500px] md:h-[600px]'} flex overflow-hidden border border-gray-200 dark:border-gray-700`}>
-        
-        {/* Header (Minimized) */}
-        <div className={`${isMinimized ? 'w-full' : 'hidden'} bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4 flex items-center justify-between`}>
-          <div className="flex items-center gap-3">
-            <MessageCircle size={24} />
-            <div>
-              <h3 className="font-bold">Messages</h3>
-              {unreadCount > 0 && (
-                <p className="text-xs text-white/80">{unreadCount} unread</p>
-              )}
+                  <button
+                    type="button"
+                    className="
+                      w-10 h-10
+                      rounded-full
+                      flex items-center justify-center
+                      hover:bg-black/5
+                      dark:hover:bg-white/5
+                      transition-all
+                      active:scale-90
+                    "
+                  >
+                    <Video size={21} />
+                  </button>
+
+                  <button
+                    type="button"
+                    className="
+                      w-10 h-10
+                      rounded-full
+                      flex items-center justify-center
+                      hover:bg-black/5
+                      dark:hover:bg-white/5
+                      transition-all
+                      active:scale-90
+                    "
+                  >
+                    <Phone size={20} />
+                  </button>
+
+                  <button
+                    type="button"
+                    className="
+                      hidden sm:flex
+                      w-10 h-10
+                      rounded-full
+                      items-center justify-center
+                      hover:bg-black/5
+                      dark:hover:bg-white/5
+                      transition-all
+                    "
+                  >
+                    <Search size={20} />
+                  </button>
+
+                  <button
+                    type="button"
+                    className="
+                      w-10 h-10
+                      rounded-full
+                      flex items-center justify-center
+                      hover:bg-black/5
+                      dark:hover:bg-white/5
+                      transition-all
+                    "
+                  >
+                    <MoreVertical size={20} />
+                  </button>
+
+                </div>
+
+              </header>
+
+              {/* ==================================================
+                  MESSAGE AREA
+              ================================================== */}
+
+              <div
+                ref={messagesContainerRef}
+                className="
+                  odms-chat-scrollbar
+                  flex-1
+                  min-h-0
+                  overflow-y-auto
+                  overflow-x-hidden
+                  overscroll-contain
+                  px-4
+                  sm:px-8
+                  lg:px-16
+                  py-4
+                  bg-[#efeae2]
+                  dark:bg-[#0b141a]
+                "
+                style={{
+                  backgroundImage: `
+                    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cg fill='none' stroke='%238696a0' stroke-width='1' stroke-opacity='.08'%3E%3Ccircle cx='24' cy='24' r='12'/%3E%3Cpath d='M18 24h12M24 18v12M70 15l5 8 9 1-7 6 2 9-9-5-8 5 2-9-7-6 9-1zM116 18c10 0 18 8 18 18s-8 18-18 18-18-8-18-18 8-18 18-18zM20 83c8-10 20-10 28 0 8 11 2 24-14 35-16-11-22-24-14-35zM78 76c0-8 7-15 15-15s15 7 15 15-7 15-15 15h-6l-10 8 3-11c-2-4-2-8-2-12zM130 78l8 8m-8 0 8-8M25 135l10-15 10 15-10 14zM82 128c6-7 15-7 21 0M79 136c9 8 18 8 27 0M125 122c8 3 13 10 13 18M124 129c4 2 7 6 7 11'/%3E%3C/g%3E%3C/svg%3E")
+                  `,
+                  backgroundRepeat: "repeat",
+                  backgroundSize: "160px 160px",
+                }}
+              >
+
+                <div
+                  className="
+                    max-w-[1000px]
+                    mx-auto
+                    min-h-full
+                    flex
+                    flex-col
+                  "
+                >
+
+                  {/* LOADING */}
+
+                  {messagesLoading && (
+
+                    <div className="
+                      flex
+                      justify-center
+                      py-5
+                    ">
+
+                      <div
+                        className="
+                          bg-white/95
+                          dark:bg-[#202c33]/95
+                          backdrop-blur-sm
+                          px-4
+                          py-2
+                          rounded-lg
+                          shadow-sm
+                          text-xs
+                          text-[#667781]
+                          dark:text-[#aebac1]
+                          animate-pulse
+                        "
+                      >
+                        Loading messages...
+                      </div>
+
+                    </div>
+
+                  )}
+
+                  {/* EMPTY */}
+
+                  {!messagesLoading &&
+                    messages.length === 0 && (
+
+                      <div className="
+                        flex
+                        justify-center
+                        pt-5
+                      ">
+
+                        <div
+                          className="
+                            max-w-md
+                            px-4
+                            py-2.5
+                            rounded-lg
+                            bg-[#fff4c6]
+                            dark:bg-[#182229]
+                            shadow-sm
+                            text-center
+                            text-[12px]
+                            leading-5
+                            text-[#54656f]
+                            dark:text-[#aebac1]
+                          "
+                        >
+                          Messages in this conversation
+                          are available only to authorized
+                          ODMS users.
+                        </div>
+
+                      </div>
+
+                    )}
+
+                  {/* MESSAGES */}
+
+                  <div className="
+                    flex
+                    flex-col
+                    gap-[3px]
+                  ">
+
+                    {messages.map(
+                      (message, index) => {
+
+                        const isOwn =
+                          message.senderId ===
+                          user.uid;
+
+                        const previousMessage =
+                          index > 0
+                            ? messages[index - 1]
+                            : null;
+
+                        const nextMessage =
+                          index <
+                          messages.length - 1
+                            ? messages[index + 1]
+                            : null;
+
+                        const sameSenderAsPrevious =
+                          previousMessage?.senderId ===
+                          message.senderId;
+
+                        const sameSenderAsNext =
+                          nextMessage?.senderId ===
+                          message.senderId;
+
+                        const showDivider =
+                          shouldShowDateDivider(
+                            message,
+                            previousMessage
+                          );
+
+                        const isDeleted =
+                          message.deletedForEveryone ===
+                          true;
+
+                        return (
+
+                          <React.Fragment
+                            key={message.id}
+                          >
+
+                            {/* DATE DIVIDER */}
+
+                            {showDivider && (
+
+                              <div
+                                className="
+                                  flex
+                                  justify-center
+                                  py-3
+                                "
+                              >
+
+                                <span
+                                  className="
+                                    bg-white/95
+                                    dark:bg-[#182229]/95
+                                    backdrop-blur-sm
+                                    text-[#54656f]
+                                    dark:text-[#aebac1]
+                                    text-[11px]
+                                    font-medium
+                                    px-3
+                                    py-1.5
+                                    rounded-lg
+                                    shadow-sm
+                                  "
+                                >
+                                  {formatDateDivider(
+                                    message.timestamp
+                                  )}
+                                </span>
+
+                              </div>
+
+                            )}
+
+                            {/* MESSAGE ROW */}
+
+                            <div
+                              className={`
+                                odms-message-enter
+                                flex
+                                w-full
+                                ${
+                                  isOwn
+                                    ? "justify-end"
+                                    : "justify-start"
+                                }
+                                ${
+                                  sameSenderAsPrevious &&
+                                  !showDivider
+                                    ? "mt-[1px]"
+                                    : "mt-1"
+                                }
+                              `}
+                            >
+
+                              {/* MESSAGE BUBBLE */}
+
+                              <div
+                                className={`
+                                  odms-message-bubble
+                                  group
+                                  relative
+                                  max-w-[85%]
+                                  sm:max-w-[70%]
+                                  lg:max-w-[65%]
+                                  min-w-[70px]
+                                  px-[9px]
+                                  pt-[6px]
+                                  pb-[5px]
+                                  shadow-[0_1px_1px_rgba(11,20,26,0.13)]
+                                  transition-all
+                                  duration-200
+                                  hover:shadow-md
+                                  ${
+                                    isOwn
+                                      ? `
+                                        bg-[#d9fdd3]
+                                        dark:bg-[#005c4b]
+                                        text-[#111b21]
+                                        dark:text-[#e9edef]
+                                        ${
+                                          sameSenderAsNext
+                                            ? "rounded-lg"
+                                            : "rounded-lg rounded-tr-sm"
+                                        }
+                                      `
+                                      : `
+                                        bg-white
+                                        dark:bg-[#202c33]
+                                        text-[#111b21]
+                                        dark:text-[#e9edef]
+                                        ${
+                                          sameSenderAsNext
+                                            ? "rounded-lg"
+                                            : "rounded-lg rounded-tl-sm"
+                                        }
+                                      `
+                                  }
+                                `}
+                              >
+
+                                {/* MESSAGE MENU BUTTON */}
+
+                                <button
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+
+                                    setActiveMessageMenu(
+                                      activeMessageMenu ===
+                                        message.id
+                                        ? null
+                                        : message.id
+                                    );
+                                  }}
+                                  className={`
+                                    odms-message-menu-button
+                                    absolute
+                                    top-1
+                                    ${
+                                      isOwn
+                                        ? "right-1"
+                                        : "right-1"
+                                    }
+                                    z-20
+                                    w-7
+                                    h-7
+                                    rounded-full
+                                    flex
+                                    items-center
+                                    justify-center
+                                    bg-white/70
+                                    dark:bg-[#111b21]/70
+                                    backdrop-blur-sm
+                                    text-[#54656f]
+                                    dark:text-[#aebac1]
+                                    hover:bg-white
+                                    dark:hover:bg-[#111b21]
+                                  `}
+                                >
+                                  <ChevronDown
+                                    size={16}
+                                  />
+                                </button>
+
+                                {/* DROPDOWN MENU */}
+
+                                {activeMessageMenu ===
+                                  message.id && (
+
+                                  <div
+                                    onClick={(event) =>
+                                      event.stopPropagation()
+                                    }
+                                    className={`
+                                      odms-message-menu
+                                      absolute
+                                      top-8
+                                      z-[100]
+                                      w-[180px]
+                                      overflow-hidden
+                                      rounded-xl
+                                      bg-white
+                                      dark:bg-[#233138]
+                                      shadow-xl
+                                      border
+                                      border-black/5
+                                      dark:border-white/5
+                                      ${
+                                        isOwn
+                                          ? "right-1"
+                                          : "left-1"
+                                      }
+                                    `}
+                                  >
+
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        openDeleteModal(
+                                          message
+                                        )
+                                      }
+                                      className="
+                                        w-full
+                                        px-4
+                                        py-3
+                                        flex
+                                        items-center
+                                        gap-3
+                                        text-sm
+                                        text-red-500
+                                        hover:bg-[#f5f6f6]
+                                        dark:hover:bg-[#182229]
+                                        transition-colors
+                                      "
+                                    >
+                                      <Trash2
+                                        size={17}
+                                      />
+
+                                      Delete message
+                                    </button>
+
+                                  </div>
+
+                                )}
+
+                                {/* MESSAGE TEXT */}
+
+                                <div className="
+                                  flex
+                                  items-end
+                                  gap-2
+                                ">
+
+                                  {isDeleted ? (
+
+                                    <p
+                                      className="
+                                        text-[13.5px]
+                                        leading-[19px]
+                                        italic
+                                        text-[#667781]
+                                        dark:text-[#aebac1]
+                                        pr-4
+                                      "
+                                    >
+                                      🚫 This message was deleted
+                                    </p>
+
+                                  ) : (
+
+                                    <p
+                                      className="
+                                        text-[14px]
+                                        sm:text-[14.2px]
+                                        leading-[19px]
+                                        whitespace-pre-wrap
+                                        break-words
+                                        min-w-0
+                                        pr-5
+                                      "
+                                    >
+                                      {message.text}
+                                    </p>
+
+                                  )}
+
+                                  <span className="
+                                    inline-block
+                                    min-w-[62px]
+                                  " />
+
+                                </div>
+
+                                {/* TIME */}
+
+                                <div
+                                  className="
+                                    absolute
+                                    right-[7px]
+                                    bottom-[4px]
+                                    flex
+                                    items-center
+                                    gap-[2px]
+                                    select-none
+                                  "
+                                >
+
+                                  <span
+                                    className="
+                                      text-[10px]
+                                      leading-none
+                                      text-[#667781]
+                                      dark:text-[#8696a0]
+                                    "
+                                  >
+                                    {formatTime(
+                                      message.timestamp
+                                    )}
+                                  </span>
+
+                                  {isOwn &&
+                                    (message.read ? (
+
+                                      <CheckCheck
+                                        size={14}
+                                        strokeWidth={2}
+                                        className="
+                                          text-[#53bdeb]
+                                        "
+                                      />
+
+                                    ) : (
+
+                                      <Check
+                                        size={14}
+                                        strokeWidth={2}
+                                        className="
+                                          text-[#667781]
+                                          dark:text-[#8696a0]
+                                        "
+                                      />
+
+                                    ))}
+
+                                </div>
+
+                              </div>
+
+                            </div>
+
+                          </React.Fragment>
+
+                        );
+                      }
+                    )}
+
+                  </div>
+
+                  <div className="h-3" />
+
+                </div>
+
+              </div>
+
+              {/* ==================================================
+                  MESSAGE INPUT
+              ================================================== */}
+
+              <footer
+                className="
+                  flex-shrink-0
+                  bg-[#f0f2f5]
+                  dark:bg-[#202c33]
+                  px-3
+                  sm:px-4
+                  py-2.5
+                  border-t
+                  border-black/5
+                  dark:border-[#222d34]
+                "
+              >
+
+                <div
+                  className="
+                    max-w-[1200px]
+                    mx-auto
+                    flex
+                    items-end
+                    gap-2
+                  "
+                >
+
+                  <button
+                    type="button"
+                    className="
+                      w-10
+                      h-10
+                      flex-shrink-0
+                      flex
+                      items-center
+                      justify-center
+                      rounded-full
+                      text-[#54656f]
+                      dark:text-[#aebac1]
+                      hover:bg-black/5
+                      dark:hover:bg-white/5
+                      transition-all
+                      duration-200
+                      active:scale-90
+                    "
+                  >
+                    <Plus
+                      size={25}
+                      strokeWidth={1.8}
+                    />
+                  </button>
+
+                  <button
+                    type="button"
+                    className="
+                      hidden
+                      sm:flex
+                      w-10
+                      h-10
+                      flex-shrink-0
+                      items-center
+                      justify-center
+                      rounded-full
+                      text-[#54656f]
+                      dark:text-[#aebac1]
+                      hover:bg-black/5
+                      dark:hover:bg-white/5
+                      transition-all
+                      duration-200
+                      active:scale-90
+                    "
+                  >
+                    <Smile
+                      size={23}
+                      strokeWidth={1.8}
+                    />
+                  </button>
+
+                  {/* INPUT */}
+
+                  <div
+                    className="
+                      flex-1
+                      min-w-0
+                      bg-white
+                      dark:bg-[#2a3942]
+                      rounded-xl
+                      flex
+                      items-center
+                      shadow-sm
+                      transition-all
+                      duration-200
+                      focus-within:ring-1
+                      focus-within:ring-[#00a884]/50
+                    "
+                  >
+
+                    <textarea
+                      ref={inputRef}
+                      rows={1}
+                      value={newMessage}
+                      onChange={(event) =>
+                        setNewMessage(
+                          event.target.value
+                        )
+                      }
+                      onKeyDown={handleKeyDown}
+                      placeholder="Type a message"
+                      className="
+                        w-full
+                        max-h-28
+                        resize-none
+                        overflow-y-auto
+                        bg-transparent
+                        px-4
+                        py-3
+                        text-[14px]
+                        text-[#111b21]
+                        dark:text-[#e9edef]
+                        placeholder:text-[#667781]
+                        dark:placeholder:text-[#8696a0]
+                        outline-none
+                        border-none
+                      "
+                    />
+
+                  </div>
+
+                  {/* SEND */}
+
+                  <button
+                    type="button"
+                    onClick={sendMessage}
+                    disabled={!newMessage.trim()}
+                    className={`
+                      w-10
+                      h-10
+                      flex-shrink-0
+                      flex
+                      items-center
+                      justify-center
+                      rounded-full
+                      transition-all
+                      duration-300
+                      ${
+                        newMessage.trim()
+                          ? `
+                            bg-[#00a884]
+                            text-white
+                            hover:bg-[#008f72]
+                            hover:scale-105
+                            active:scale-90
+                            shadow-sm
+                          `
+                          : `
+                            bg-transparent
+                            text-[#54656f]
+                            dark:text-[#8696a0]
+                            cursor-default
+                          `
+                      }
+                    `}
+                  >
+
+                    <Send
+                      size={20}
+                      strokeWidth={1.8}
+                    />
+
+                  </button>
+
+                </div>
+
+              </footer>
+
+            </>
+
+          ) : (
+
+            /* ==================================================
+                NO CONVERSATION SELECTED
+            ================================================== */
+
+            <div
+              className="
+                flex-1
+                min-h-0
+                flex
+                flex-col
+                items-center
+                justify-center
+                bg-[#f7f9fa]
+                dark:bg-[#222e35]
+                text-[#111b21]
+                dark:text-[#e9edef]
+                text-center
+                border-b-[6px]
+                border-[#25d366]
+                dark:border-[#00a884]
+              "
+            >
+
+              <MessageCircle
+                size={60}
+                className="
+                  text-[#25d366]
+                  dark:text-[#00a884]
+                "
+              />
+
+              <h2
+                className="
+                  text-2xl
+                  mt-5
+                  text-[#111b21]
+                  dark:text-[#e9edef]
+                "
+              >
+                ODMS Chat
+              </h2>
+
+              <p
+                className="
+                  text-[#667781]
+                  dark:text-[#8696a0]
+                  mt-2
+                "
+              >
+                Select a conversation to start messaging.
+              </p>
+
             </div>
+
+          )}
+
+        </main>
+
+      </div>
+
+      {/* ======================================================
+          DELETE MESSAGE MODAL
+      ====================================================== */}
+
+      {deleteModal && (
+
+        <div
+          onClick={closeDeleteModal}
+          className="
+            fixed
+            inset-0
+            z-[10000]
+            flex
+            items-center
+            justify-center
+            px-4
+            bg-black/50
+            backdrop-blur-[2px]
+          "
+        >
+
+          <div
+            onClick={(event) =>
+              event.stopPropagation()
+            }
+            className="
+              odms-delete-modal
+              w-full
+              max-w-[400px]
+              overflow-hidden
+              rounded-2xl
+              bg-white
+              dark:bg-[#233138]
+              shadow-2xl
+              text-[#111b21]
+              dark:text-[#e9edef]
+            "
+          >
+
+            <div className="
+              px-6
+              pt-6
+              pb-4
+            ">
+
+              <div className="
+                flex
+                items-center
+                gap-3
+              ">
+
+                <div
+                  className="
+                    w-11
+                    h-11
+                    rounded-full
+                    flex
+                    items-center
+                    justify-center
+                    bg-red-50
+                    dark:bg-red-500/10
+                    text-red-500
+                  "
+                >
+                  <Trash2 size={21} />
+                </div>
+
+                <div>
+
+                  <h3 className="
+                    text-lg
+                    font-semibold
+                  ">
+                    Delete message?
+                  </h3>
+
+                  <p className="
+                    text-sm
+                    mt-0.5
+                    text-[#667781]
+                    dark:text-[#8696a0]
+                  ">
+                    Choose how you want to delete
+                    this message.
+                  </p>
+
+                </div>
+
+              </div>
+
+            </div>
+
+            <div className="
+              px-4
+              pb-4
+              flex
+              flex-col
+              gap-1
+            ">
+
+              {/* DELETE FOR EVERYONE */}
+
+              {deleteModal.senderId ===
+                user.uid &&
+                !deleteModal.deletedForEveryone && (
+
+                <button
+                  type="button"
+                  onClick={deleteForEveryone}
+                  disabled={deletingMessage}
+                  className="
+                    w-full
+                    px-4
+                    py-3
+                    rounded-xl
+                    flex
+                    items-center
+                    gap-3
+                    text-left
+                    text-red-500
+                    hover:bg-red-50
+                    dark:hover:bg-red-500/10
+                    transition-all
+                    duration-200
+                    disabled:opacity-50
+                  "
+                >
+
+                  <Trash2 size={19} />
+
+                  <div>
+
+                    <p className="
+                      text-sm
+                      font-medium
+                    ">
+                      Delete for everyone
+                    </p>
+
+                    <p className="
+                      text-xs
+                      mt-0.5
+                      text-[#667781]
+                      dark:text-[#8696a0]
+                    ">
+                      The message will appear as deleted
+                      for both users.
+                    </p>
+
+                  </div>
+
+                </button>
+
+              )}
+
+              {/* DELETE FOR ME */}
+
+              <button
+                type="button"
+                onClick={deleteForMe}
+                disabled={deletingMessage}
+                className="
+                  w-full
+                  px-4
+                  py-3
+                  rounded-xl
+                  flex
+                  items-center
+                  gap-3
+                  text-left
+                  text-[#111b21]
+                  dark:text-[#e9edef]
+                  hover:bg-[#f5f6f6]
+                  dark:hover:bg-[#182229]
+                  transition-all
+                  duration-200
+                  disabled:opacity-50
+                "
+              >
+
+                <Trash2 size={19} />
+
+                <div>
+
+                  <p className="
+                    text-sm
+                    font-medium
+                  ">
+                    Delete for me
+                  </p>
+
+                  <p className="
+                    text-xs
+                    mt-0.5
+                    text-[#667781]
+                    dark:text-[#8696a0]
+                  ">
+                    This message will only be removed
+                    from your chat.
+                  </p>
+
+                </div>
+
+              </button>
+
+              {/* CANCEL */}
+
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                disabled={deletingMessage}
+                className="
+                  w-full
+                  mt-2
+                  py-3
+                  rounded-xl
+                  text-sm
+                  font-medium
+                  text-[#008069]
+                  dark:text-[#00a884]
+                  hover:bg-[#f5f6f6]
+                  dark:hover:bg-[#182229]
+                  transition-all
+                  duration-200
+                  disabled:opacity-50
+                "
+              >
+                {deletingMessage
+                  ? "Deleting..."
+                  : "Cancel"}
+              </button>
+
+            </div>
+
           </div>
-          <div className="flex gap-2">
-            <button onClick={() => setIsMinimized(false)} className="hover:bg-white/20 p-2 rounded-lg transition-colors">
-              <Maximize2 size={18} />
-            </button>
-            <button onClick={() => setIsOpen(false)} className="hover:bg-white/20 p-2 rounded-lg transition-colors">
-              <X size={18} />
-            </button>
-          </div>
+
         </div>
 
-        {!isMinimized && (
-          <>
-            {/* Sidebar - Conversations List */}
-            <div className="w-full md:w-80 border-r border-gray-200 dark:border-gray-700 flex flex-col">
-              {/* Sidebar Header */}
-              <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <MessageCircle size={24} />
-                    <h3 className="font-bold text-lg">Messages</h3>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => setIsMinimized(true)} className="hover:bg-white/20 p-2 rounded-lg transition-colors">
-                      <Minimize2 size={18} />
-                    </button>
-                    <button onClick={() => setIsOpen(false)} className="hover:bg-white/20 p-2 rounded-lg transition-colors">
-                      <X size={18} />
-                    </button>
-                  </div>
-                </div>
-                
-                {/* Search */}
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/60" size={18} />
-                  <input
-                    type="text"
-                    placeholder="Search users..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-white/20 border border-white/30 rounded-lg text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-white/50"
-                  />
-                </div>
-              </div>
+      )}
 
-              {/* Access Info Banner */}
-              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800">
-                <p className="text-xs text-blue-800 dark:text-blue-300">
-                  {currentUserRole === 'doctor' || currentUserRole === 'admin' 
-                    ? '👨‍⚕️ You can chat with all users'
-                    : currentUserRole === 'donor'
-                    ? '💙 Chat with matched recipients and doctors'
-                    : currentUserRole === 'recipient'
-                    ? '💜 Chat with matched donors and doctors'
-                    : '💬 Search to start chatting'
-                  }
-                </p>
-              </div>
-
-              {/* Matched Users Section */}
-              {(currentUserRole === 'donor' || currentUserRole === 'recipient') && matches.length > 0 && allUsers.length > 0 && (
-                <div className="p-3 border-b border-gray-200 dark:border-gray-700">
-                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-2">
-                    <span>💝</span>
-                    {currentUserRole === 'donor' ? 'Your Matched Recipients' : 'Your Matched Donors'}
-                  </p>
-                  <div className="space-y-1 max-h-40 md:max-h-60 overflow-y-auto">
-                    {(() => {
-                      const uniqueMatches = [];
-                      const seenUserIds = new Set();
-                      
-                      matches.forEach(match => {
-                        const matchedUserId = currentUserRole === 'donor' ? match.recipientId : match.donorId;
-                        if (!seenUserIds.has(matchedUserId)) {
-                          seenUserIds.add(matchedUserId);
-                          uniqueMatches.push(match);
-                        }
-                      });
-                      
-                      return uniqueMatches.map(match => {
-                        const matchedUserId = currentUserRole === 'donor' ? match.recipientId : match.donorId;
-                        const matchedUser = allUsers.find(u => u.id === matchedUserId);
-                        
-                        if (!matchedUser) return null;
-                        
-                        const hasConversation = conversations.some(c => c.participants.includes(matchedUser.id));
-                        const userMatches = matches.filter(m => 
-                          (currentUserRole === 'donor' ? m.recipientId : m.donorId) === matchedUserId
-                        );
-                        
-                        return (
-                          <button
-                            key={match.id}
-                            onClick={() => {
-                              if (hasConversation) {
-                                const existingConvo = conversations.find(c => c.participants.includes(matchedUser.id));
-                                setSelectedChat(existingConvo);
-                              } else {
-                                startConversation(matchedUser);
-                              }
-                            }}
-                            className="w-full flex items-center gap-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                          >
-                            <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-rose-500 rounded-full flex items-center justify-center text-white font-bold">
-                              {(matchedUser.fullName || matchedUser.email)?.[0]?.toUpperCase()}
-                            </div>
-                            <div className="flex-1 text-left">
-                              <p className="font-medium text-sm text-gray-900 dark:text-white">{matchedUser.fullName || matchedUser.email}</p>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className={`text-xs px-2 py-0.5 rounded-full ${getRoleBadge(matchedUser.role)}`}>
-                                  {matchedUser.role}
-                                </span>
-                                {userMatches.length === 1 ? (
-                                  <span className="text-xs text-green-600 dark:text-green-400 font-medium">
-                                    {userMatches[0].organType} ({userMatches[0].bloodGroup})
-                                  </span>
-                                ) : (
-                                  <span className="text-xs text-green-600 dark:text-green-400 font-medium">
-                                    {userMatches.length} matches
-                                  </span>
-                                )}
-                                {hasConversation && (
-                                  <span className="text-xs text-blue-600 dark:text-blue-400">● Chat Active</span>
-                                )}
-                              </div>
-                            </div>
-                          </button>
-                        );
-                      });
-                    })()}
-                  </div>
-                </div>
-              )}
-
-              {/* Search Results */}
-              {searchQuery && filteredUsers.length > 0 && (
-                <div className="p-3 border-b border-gray-200 dark:border-gray-700">
-                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Search Results</p>
-                  <div className="space-y-1 max-h-40 md:max-h-60 overflow-y-auto">
-                    {filteredUsers.map(otherUser => {
-                      const hasConversation = conversations.some(c => c.participants.includes(otherUser.id));
-                      const relationship = getRelationship(otherUser);
-                      
-                      return (
-                        <button
-                          key={otherUser.id}
-                          onClick={() => {
-                            if (hasConversation) {
-                              const existingConvo = conversations.find(c => c.participants.includes(otherUser.id));
-                              setSelectedChat(existingConvo);
-                            } else {
-                              startConversation(otherUser);
-                            }
-                            setSearchQuery('');
-                          }}
-                          className="w-full flex items-center gap-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                        >
-                          <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
-                            {(otherUser.fullName || otherUser.email)?.[0]?.toUpperCase()}
-                          </div>
-                          <div className="flex-1 text-left">
-                            <p className="font-medium text-sm text-gray-900 dark:text-white">{otherUser.fullName || otherUser.email}</p>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`text-xs px-2 py-0.5 rounded-full ${getRoleBadge(otherUser.role)}`}>
-                                {otherUser.role}
-                              </span>
-                              {relationship && (
-                                <span className="text-xs text-green-600 dark:text-green-400">
-                                  {relationship}
-                                </span>
-                              )}
-                              {hasConversation && (
-                                <span className="text-xs text-blue-600 dark:text-blue-400">● Active</span>
-                              )}
-                            </div>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* No Results */}
-              {searchQuery && filteredUsers.length === 0 && (
-                <div className="p-6 text-center">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">No users found</p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                    {currentUserRole === 'donor' 
-                      ? 'You can only chat with matched recipients and doctors'
-                      : currentUserRole === 'recipient'
-                      ? 'You can only chat with matched donors and doctors'
-                      : 'Try a different search term'
-                    }
-                  </p>
-                </div>
-              )}
-
-              {/* Conversations List */}
-              <div className="flex-1 overflow-y-auto">
-                {conversations.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full text-center p-6">
-                    <MessageCircle className="text-gray-300 dark:text-gray-600 mb-3" size={48} />
-                    <p className="text-gray-500 dark:text-gray-400 mb-2">No conversations yet</p>
-                    <p className="text-sm text-gray-400 dark:text-gray-500">Search for users to start chatting</p>
-                  </div>
-                ) : filteredConversations.length === 0 && searchQuery ? (
-                  <div className="flex flex-col items-center justify-center h-full text-center p-6">
-                    <Search className="text-gray-300 dark:text-gray-600 mb-3" size={48} />
-                    <p className="text-gray-500 dark:text-gray-400 mb-2">No conversations found</p>
-                    <p className="text-sm text-gray-400 dark:text-gray-500">Try searching for new users above</p>
-                  </div>
-                ) : (
-                  filteredConversations.map(convo => {
-                    const otherUser = getOtherUser(convo);
-                    const unreadForUser = convo.unreadCount?.[user.uid] || 0;
-                    const relationship = getRelationship(otherUser);
-                    
-                    return (
-                      <button
-                        key={convo.id}
-                        onClick={() => setSelectedChat(convo)}
-                        className={`w-full flex items-center gap-3 p-4 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors ${
-                          selectedChat?.id === convo.id ? 'bg-indigo-50 dark:bg-indigo-900/20' : ''
-                        }`}
-                      >
-                        <div className="relative">
-                          <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
-                            {otherUser.name[0]?.toUpperCase()}
-                          </div>
-                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full"></div>
-                        </div>
-                        <div className="flex-1 text-left overflow-hidden">
-                          <div className="flex items-center justify-between mb-1">
-                            <p className="font-semibold text-gray-900 dark:text-white truncate">{otherUser.name}</p>
-                            {unreadForUser > 0 && (
-                              <span className="bg-indigo-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                                {unreadForUser > 9 ? '9+' : unreadForUser}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${getRoleBadge(otherUser.role)}`}>
-                              {otherUser.role}
-                            </span>
-                            {relationship && (
-                              <span className="text-xs text-green-600 dark:text-green-400 truncate">
-                                {relationship.split(' - ')[0]}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-500 dark:text-gray-400 truncate mt-1">
-                            {convo.lastMessage || 'Start a conversation'}
-                          </p>
-                        </div>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-            {/* Chat Area */}
-            <div className="flex-1 flex flex-col">
-              {selectedChat ? (
-                <>
-                  {/* Chat Header */}
-                  <div className="border-b border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-800">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
-                          <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
-                            {getOtherUser(selectedChat).name[0]?.toUpperCase()}
-                          </div>
-                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-gray-800 rounded-full"></div>
-                        </div>
-                        <div>
-                          <p className="font-semibold text-gray-900 dark:text-white">{getOtherUser(selectedChat).name}</p>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${getRoleBadge(getOtherUser(selectedChat).role)}`}>
-                              {getOtherUser(selectedChat).role}
-                            </span>
-                            {getRelationship(getOtherUser(selectedChat)) && (
-                              <span className="text-xs text-green-600 dark:text-green-400">
-                                {getRelationship(getOtherUser(selectedChat))}
-                              </span>
-                            )}
-                            <span className="text-xs text-green-600 dark:text-green-400">● Online</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                          <Phone size={20} className="text-gray-600 dark:text-gray-400" />
-                        </button>
-                        <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                          <Video size={20} className="text-gray-600 dark:text-gray-400" />
-                        </button>
-                        <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                          <MoreVertical size={20} className="text-gray-600 dark:text-gray-400" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Messages */}
-                  <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-900">
-                    {messages.map((msg, index) => {
-                      const isOwn = msg.senderId === user.uid;
-                      const showTimestamp = index === 0 || 
-                        (messages[index - 1] && 
-                         new Date(msg.timestamp?.toDate()).getTime() - new Date(messages[index - 1].timestamp?.toDate()).getTime() > 300000);
-
-                      return (
-                        <div key={msg.id}>
-                          {showTimestamp && msg.timestamp && (
-                            <div className="flex justify-center my-4">
-                              <span className="text-xs text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 px-3 py-1 rounded-full">
-                                {new Date(msg.timestamp.toDate()).toLocaleString()}
-                              </span>
-                            </div>
-                          )}
-                          <div className={`flex gap-2 ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                            {!isOwn && (
-                              <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-                                {msg.senderName[0]?.toUpperCase()}
-                              </div>
-                            )}
-                            <div className={`max-w-[70%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
-                              <div className={`p-3 rounded-2xl ${
-                                isOwn 
-                                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-br-sm' 
-                                  : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-bl-sm shadow-md'
-                              }`}>
-                                <p className="text-sm break-words">{msg.text}</p>
-                              </div>
-                              <div className="flex items-center gap-1 mt-1">
-                                <span className="text-xs text-gray-400">
-                                  {msg.timestamp && new Date(msg.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                                {isOwn && (
-                                  msg.read ? 
-                                    <CheckCheck size={14} className="text-blue-500" /> : 
-                                    <Check size={14} className="text-gray-400" />
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    <div ref={messagesEndRef} />
-                  </div>
-
-                  {/* Input */}
-                  <div className="border-t border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-800">
-                    <div className="flex items-center gap-2">
-                      <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                        <Paperclip size={20} className="text-gray-600 dark:text-gray-400" />
-                      </button>
-                      <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                        <Smile size={20} className="text-gray-600 dark:text-gray-400" />
-                      </button>
-                      <input
-                        type="text"
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        onKeyPress={handleKeyPress}
-                        placeholder="Type a message..."
-                        className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white"
-                      />
-                      <button
-                        onClick={sendMessage}
-                        disabled={!newMessage.trim()}
-                        className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-2 rounded-xl hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <Send size={20} />
-                      </button>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-                  <div className="w-24 h-24 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-full flex items-center justify-center mb-6">
-                    <MessageCircle className="text-indigo-600 dark:text-indigo-400" size={48} />
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Welcome to ODMS Chat</h3>
-                  <p className="text-gray-500 dark:text-gray-400 mb-4">
-                    {currentUserRole === 'doctor' || currentUserRole === 'admin'
-                      ? 'Select a conversation or search for any user to start chatting'
-                      : currentUserRole === 'donor'
-                      ? 'Chat with your matched recipients and medical team'
-                      : currentUserRole === 'recipient'
-                      ? 'Chat with your matched donors and medical team'
-                      : 'Select a conversation to start chatting'
-                    }
-                  </p>
-                  <div className="flex gap-2">
-                    <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-400 rounded-full text-sm">Donors</span>
-                    <span className="px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-400 rounded-full text-sm">Recipients</span>
-                    <span className="px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 rounded-full text-sm">Doctors</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+    </>
   );
 };
 

@@ -16,9 +16,7 @@ const DocumentUploadSystem = () => {
   const DOCUMENT_TYPES = [
     { id: 'aadhaar', label: 'Aadhaar Card', required: true, icon: '🆔' },
     { id: 'medical', label: 'Medical Report', required: true, icon: '🏥' },
-    { id: 'blood_test', label: 'Blood Test Report', required: true, icon: '🩸' },
     { id: 'photo', label: 'Recent Photograph', required: true, icon: '📸' },
-    { id: 'address_proof', label: 'Address Proof', required: false, icon: '🏠' },
     { id: 'consent_form', label: 'Consent Form', required: true, icon: '📝' }
   ];
 
@@ -369,57 +367,25 @@ Respond in JSON format:
   const rejectedCount = documents.filter(d => d.status === 'rejected').length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-8 px-4">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-6 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1400px] mx-auto">
         
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <Shield className="text-red-500" size={40} />
-            <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
-              Document Upload
-            </h1>
-          </div>
-          <p className="text-lg text-gray-600 dark:text-gray-300 mb-2">
-            Upload your documents for doctor verification
-          </p>
-          <p className="text-sm text-yellow-600 dark:text-yellow-400">
-            File size limited to 500KB 
-          </p>
-
-          {/* Status Summary */}
-          <div className="flex justify-center gap-4 flex-wrap mt-4">
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 px-4 py-2 rounded-lg border border-yellow-200 dark:border-yellow-800">
-              <Clock size={20} className="inline mr-2 text-yellow-600" />
-              <span className="font-semibold text-yellow-800 dark:text-yellow-300">{pendingCount} Pending</span>
-            </div>
-            <div className="bg-green-50 dark:bg-green-900/20 px-4 py-2 rounded-lg border border-green-200 dark:border-green-800">
-              <CheckCircle size={20} className="inline mr-2 text-green-600" />
-              <span className="font-semibold text-green-800 dark:text-green-300">{approvedCount} Approved</span>
-            </div>
-            <div className="bg-red-50 dark:bg-red-900/20 px-4 py-2 rounded-lg border border-red-200 dark:border-red-800">
-              <XCircle size={20} className="inline mr-2 text-red-600" />
-              <span className="font-semibold text-red-800 dark:text-red-300">{rejectedCount} Rejected</span>
-            </div>
-          </div>
-        </div>
-
         {/* Upload Section */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700 mb-6">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <Upload size={24} />
+        <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm p-4 sm:p-5 border border-slate-200 dark:border-slate-800 mb-5">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+            <Upload size={18} className="text-emerald-500" />
             Required Documents
           </h2>
 
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {DOCUMENT_TYPES.map(docType => {
               const uploaded = documents.find(d => d.type === docType.id);
               
               return (
-                <div key={docType.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-red-300 dark:hover:border-red-600 transition-colors">
+                <div key={docType.id} className="border border-slate-200 dark:border-slate-800 rounded-xl p-3 bg-slate-50/60 dark:bg-slate-950/40 hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl">{docType.icon}</span>
+                      <span className="text-lg">{docType.icon}</span>
                       <div>
                         <h3 className="font-semibold text-gray-900 dark:text-white">
                           {docType.label}
@@ -500,8 +466,8 @@ Respond in JSON format:
                         className="hidden"
                         disabled={uploading}
                       />
-                      <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center cursor-pointer hover:border-red-400 dark:hover:border-red-500 transition-colors">
-                        <Upload className="mx-auto text-gray-400 mb-2" size={24} />
+                      <div className="border border-dashed border-slate-300 dark:border-slate-700 rounded-lg p-3 text-center cursor-pointer hover:border-emerald-400 dark:hover:border-emerald-600 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/10 transition-colors">
+                        <Upload className="mx-auto text-emerald-500 mb-1.5" size={18} />
                         <p className="text-sm text-gray-600 dark:text-gray-400">
                           Click to upload {docType.label}
                         </p>

@@ -42,20 +42,20 @@ function VerificationTimeline({ status }) {
       {steps.map((step, i) => (
         <div key={step.key} className="flex items-center gap-2">
           <div className="flex flex-col items-center">
-            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm transition-all
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm transition-all
               ${i <= currentIndex
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30'
+                ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/20'
                 : 'bg-gray-100 dark:bg-gray-700 text-gray-400'}`}>
               {step.icon}
             </div>
             <span className={`text-xs mt-1 text-center w-20 leading-tight
-              ${i <= currentIndex ? 'text-indigo-600 dark:text-indigo-400 font-medium' : 'text-gray-400'}`}>
+              ${i <= currentIndex ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-gray-400'}`}>
               {step.label}
             </span>
           </div>
           {i < steps.length - 1 && (
             <div className={`h-0.5 w-10 mb-5 rounded transition-all
-              ${i < currentIndex ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-700'}`}
+              ${i < currentIndex ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'}`}
             />
           )}
         </div>
@@ -145,23 +145,23 @@ export default function PoliceVerificationPage() {
   const rejectedCount = requests.filter((r) => r.status === 'rejected').length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-100 via-pink-100 to-blue-100 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 p-4 lg:p-8">
-      <div className="max-w-5xl mx-auto space-y-6">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 p-4 sm:p-6 lg:p-8">
+      <div className="max-w-[1400px] mx-auto space-y-4">
 
         {/* ── Header ── */}
-        <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 shadow-xl border border-white/20">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-800">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent flex items-center gap-2">
+              <h1 className="text-2xl sm:text-3xl font-black text-emerald-500 dark:text-emerald-400 flex items-center gap-2">
                 🚔 Police Verification
               </h1>
-              <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">
+              <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">
                 Submit and track your police clearance request for organ donation
               </p>
             </div>
             <button
               onClick={() => setShowForm((v) => !v)}
-              className="px-5 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg hover:scale-105 transition-all"
+              className="px-4 py-2.5 bg-transparent text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 rounded-xl text-sm font-bold hover:bg-emerald-500/10 hover:border-emerald-500 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200"
             >
               {showForm ? '✕ Cancel' : '+ New Request'}
             </button>
@@ -179,24 +179,51 @@ export default function PoliceVerificationPage() {
           </div>
         )}
 
-        {/* ── Stats Row ── */}
-        <div className="grid grid-cols-3 gap-4">
-          {[
-            { label: 'Pending',  value: pendingCount,  color: 'from-yellow-500 to-yellow-600', bg: 'from-yellow-500/10 to-yellow-600/5', icon: '⏳' },
-            { label: 'Approved', value: approvedCount, color: 'from-green-500 to-emerald-600', bg: 'from-green-500/10 to-emerald-600/5', icon: '✅' },
-            { label: 'Rejected', value: rejectedCount, color: 'from-red-500 to-red-600',       bg: 'from-red-500/10 to-red-600/5',       icon: '❌' },
-          ].map((s) => (
-            <div key={s.label} className={`bg-gradient-to-br ${s.bg} rounded-2xl p-4 border border-white/20 shadow text-center`}>
-              <p className="text-2xl mb-1">{s.icon}</p>
-              <p className={`text-2xl font-bold bg-gradient-to-r ${s.color} bg-clip-text text-transparent`}>{s.value}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">{s.label}</p>
-            </div>
-          ))}
+{/* Compact Stats */}
+<div className="grid grid-cols-3 gap-3">
+  {[
+    {
+      label: "Pending",
+      value: pendingCount,
+      icon: "⏳",
+      text: "text-yellow-600",
+    },
+    {
+      label: "Approved",
+      value: approvedCount,
+      icon: "✅",
+      text: "text-emerald-600",
+    },
+    {
+      label: "Rejected",
+      value: rejectedCount,
+      icon: "❌",
+      text: "text-red-600",
+    },
+  ].map((stat) => (
+    <div
+      key={stat.label}
+      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 shadow-sm"
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-sm">{stat.icon}</span>
+          <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+            {stat.label}
+          </span>
         </div>
+
+        <span className={`text-xl font-bold ${stat.text}`}>
+          {stat.value}
+        </span>
+      </div>
+    </div>
+  ))}
+</div>
 
         {/* ── Submission Form ── */}
         {showForm && (
-          <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 shadow-xl border border-white/20">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-800">
             <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
               <span>📋</span> New Police Verification Request
             </h2>
@@ -220,7 +247,7 @@ export default function PoliceVerificationPage() {
                     value={form.donorName}
                     onChange={handleChange}
                     placeholder="Enter donor's full name"
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 outline-none transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all text-sm"
                   />
                 </div>
 
@@ -233,7 +260,7 @@ export default function PoliceVerificationPage() {
                     name="incidentType"
                     value={form.incidentType}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 outline-none transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all text-sm"
                   >
                     <option value="">Select incident type</option>
                     <option value="road_accident">Road Accident</option>
@@ -254,7 +281,7 @@ export default function PoliceVerificationPage() {
                     value={form.caseNumber}
                     onChange={handleChange}
                     placeholder="e.g. FIR/2026/001234"
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 outline-none transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all text-sm"
                   />
                 </div>
 
@@ -268,7 +295,7 @@ export default function PoliceVerificationPage() {
                     value={form.policeStation}
                     onChange={handleChange}
                     placeholder="e.g. Bharuch City Police Station"
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 outline-none transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all text-sm"
                   />
                 </div>
 
@@ -282,7 +309,7 @@ export default function PoliceVerificationPage() {
                     value={form.officerName}
                     onChange={handleChange}
                     placeholder="Officer full name"
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 outline-none transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all text-sm"
                   />
                 </div>
 
@@ -296,7 +323,7 @@ export default function PoliceVerificationPage() {
                     value={form.officerBadge}
                     onChange={handleChange}
                     placeholder="e.g. GUJ-2341"
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 outline-none transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all text-sm"
                   />
                 </div>
 
@@ -310,7 +337,7 @@ export default function PoliceVerificationPage() {
                     name="incidentDate"
                     value={form.incidentDate}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 outline-none transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all text-sm"
                   />
                 </div>
 
@@ -325,13 +352,13 @@ export default function PoliceVerificationPage() {
                     onChange={handleChange}
                     rows={4}
                     placeholder="Provide any additional details about the case..."
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 outline-none transition-all resize-none"
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all text-sm resize-none"
                   />
                 </div>
               </div>
 
               {/* Info Note */}
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 text-sm text-blue-700 dark:text-blue-400">
+              <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 text-sm text-emerald-700 dark:text-emerald-400">
                 ℹ️ Physical documents (FIR copy, Death Certificate) should be submitted directly to the hospital admin. This form creates a digital record for tracking purposes.
               </div>
 
@@ -340,14 +367,14 @@ export default function PoliceVerificationPage() {
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
-                  className="px-5 py-3 bg-gray-200 dark:bg-gray-700 rounded-xl font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-all"
+                  className="px-4 py-2.5 bg-transparent text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-5 py-2.5 bg-transparent text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 rounded-xl text-sm font-bold hover:bg-emerald-500/10 hover:border-emerald-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {submitting ? '⏳ Submitting...' : '🚔 Submit Request'}
                 </button>
@@ -357,14 +384,14 @@ export default function PoliceVerificationPage() {
         )}
 
         {/* ── My Requests List ── */}
-        <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 shadow-xl border border-white/20">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-800">
           <h2 className="text-xl font-bold mb-5 flex items-center gap-2">
             <span>📁</span> My Verification Requests
           </h2>
 
           {loading && (
             <div className="flex justify-center py-8">
-              <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+              <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
             </div>
           )}
 
@@ -382,7 +409,7 @@ export default function PoliceVerificationPage() {
               .map((req) => (
                 <div
                   key={req.id}
-                  className="border border-gray-200 dark:border-gray-700 rounded-2xl p-5 hover:shadow-md transition-all"
+                  className="border border-slate-200 dark:border-slate-800 rounded-xl p-4 bg-slate-50/50 dark:bg-slate-950/30 hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-sm transition-all"
                 >
                   {/* Top Row */}
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
@@ -406,15 +433,15 @@ export default function PoliceVerificationPage() {
 
                   {/* Details Grid */}
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-4">
-                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3">
+                    <div className="bg-white dark:bg-slate-900 rounded-lg p-3 border border-slate-100 dark:border-slate-800">
                       <p className="text-xs text-gray-500 dark:text-gray-400">Police Station</p>
                       <p className="font-semibold text-sm mt-0.5">{req.policeStation || '—'}</p>
                     </div>
-                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3">
+                    <div className="bg-white dark:bg-slate-900 rounded-lg p-3 border border-slate-100 dark:border-slate-800">
                       <p className="text-xs text-gray-500 dark:text-gray-400">Officer</p>
                       <p className="font-semibold text-sm mt-0.5">{req.officerName || '—'}</p>
                     </div>
-                    <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-3">
+                    <div className="bg-white dark:bg-slate-900 rounded-lg p-3 border border-slate-100 dark:border-slate-800">
                       <p className="text-xs text-gray-500 dark:text-gray-400">Badge / ID</p>
                       <p className="font-semibold text-sm mt-0.5 font-mono">{req.officerBadge || '—'}</p>
                     </div>

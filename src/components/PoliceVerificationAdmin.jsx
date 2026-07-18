@@ -181,7 +181,7 @@ function ReviewModal({ request, onClose, onSave }) {
                   ? 'Explain reason for rejection...'
                   : 'Add any clearance notes or conditions...'
               }
-              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 outline-none transition-all resize-none"
+              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-emerald-500 outline-none transition-all resize-none"
             />
           </div>
 
@@ -297,17 +297,26 @@ export default function PoliceVerificationAdmin() {
         )}
       </div>
 
-      {/* ── Stats ── */}
-      <div className="grid grid-cols-3 gap-4">
+      {/* ── Compact Stats ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
-          { label: 'Pending',  value: pendingCount,  color: 'text-yellow-600 dark:text-yellow-400', bg: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800', icon: '⏳' },
-          { label: 'Approved', value: approvedCount, color: 'text-green-600 dark:text-green-400',   bg: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800',   icon: '✅' },
-          { label: 'Rejected', value: rejectedCount, color: 'text-red-600 dark:text-red-400',       bg: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800',           icon: '❌' },
+          { label: 'Pending', value: pendingCount, color: 'text-yellow-600 dark:text-yellow-400', icon: '⏳' },
+          { label: 'Approved', value: approvedCount, color: 'text-emerald-600 dark:text-emerald-400', icon: '✅' },
+          { label: 'Rejected', value: rejectedCount, color: 'text-red-600 dark:text-red-400', icon: '❌' },
         ].map((s) => (
-          <div key={s.label} className={`rounded-2xl p-4 border text-center ${s.bg}`}>
-            <p className="text-xl mb-1">{s.icon}</p>
-            <p className={`text-3xl font-bold ${s.color}`}>{s.value}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-0.5">{s.label}</p>
+          <div
+            key={s.label}className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-5 py-4 min-h-[72px] shadow-sm flex items-center"
+            
+          >
+            <div className="flex items-center justify-between gap-4 w-full">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">{s.icon}</span>
+                <span className="text-sm font-semibold text-slate-600 dark:text-slate-400">
+                  {s.label}
+                </span>
+              </div>
+              <span className={`text-2xl font-bold ${s.color}`}>{s.value}</span>
+            </div>
           </div>
         ))}
       </div>
@@ -319,7 +328,7 @@ export default function PoliceVerificationAdmin() {
           placeholder="🔍 Search by donor name, FIR, station..."
           value={searchQuery}
           onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 outline-none transition-all"
+          className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-emerald-500 outline-none transition-all"
         />
         <div className="flex gap-2">
           {['all', 'pending', 'approved', 'rejected'].map((f) => (
@@ -328,7 +337,7 @@ export default function PoliceVerificationAdmin() {
               onClick={() => setFilter(f)}
               className={`px-4 py-2 rounded-xl text-sm font-semibold capitalize transition-all ${
                 filterStatus === f
-                  ? 'bg-indigo-600 text-white shadow-md'
+                  ? 'bg-emerald-600 text-white shadow-md'
                   : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
               }`}
             >
@@ -341,7 +350,7 @@ export default function PoliceVerificationAdmin() {
       {/* ── Loading ── */}
       {loading && (
         <div className="flex justify-center py-12">
-          <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+          <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
         </div>
       )}
 
@@ -377,7 +386,7 @@ export default function PoliceVerificationAdmin() {
                 {filtered.map((req) => (
                   <tr key={req.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                     <td className="px-5 py-4 font-semibold">{req.donorName}</td>
-                    <td className="px-5 py-4 font-mono text-sm text-indigo-600 dark:text-indigo-400">{req.caseNumber}</td>
+                    <td className="px-5 py-4 font-mono text-sm text-emerald-600 dark:text-emerald-400">{req.caseNumber}</td>
                     <td className="px-5 py-4 text-sm">{req.policeStation}</td>
                     <td className="px-5 py-4">
                       <IncidentLabel type={req.incidentType} />
@@ -395,7 +404,7 @@ export default function PoliceVerificationAdmin() {
                         onClick={() => setSelected(req)}
                         className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
                           req.status === 'pending'
-                            ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow'
+                            ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow'
                             : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
                         }`}
                       >
@@ -415,7 +424,7 @@ export default function PoliceVerificationAdmin() {
                 <div className="flex items-start justify-between gap-2 mb-3">
                   <div>
                     <p className="font-bold">{req.donorName}</p>
-                    <p className="text-xs font-mono text-indigo-600 dark:text-indigo-400 mt-0.5">{req.caseNumber}</p>
+                    <p className="text-xs font-mono text-emerald-600 dark:text-emerald-400 mt-0.5">{req.caseNumber}</p>
                   </div>
                   <StatusBadge status={req.status} />
                 </div>
@@ -429,7 +438,7 @@ export default function PoliceVerificationAdmin() {
                     onClick={() => setSelected(req)}
                     className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
                       req.status === 'pending'
-                        ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-700'
                         : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
                     }`}
                   >

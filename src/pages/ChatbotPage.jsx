@@ -1,6 +1,7 @@
 // ----------------------------------------------
 // src/pages/ChatbotPage.jsx
 // ----------------------------------------------
+
 import React from "react";
 import { motion } from "framer-motion";
 import ODMSChatbot from "../components/ODMSChatbot";
@@ -44,21 +45,26 @@ const ChatbotPage = () => {
             custom={0}
             variants={cardVariants}
             initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
+            animate="visible"
             whileHover={{ scale: 1.05, y: -6 }}
             className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 cursor-pointer transition-all"
           >
             <motion.div
               animate={{ rotate: [0, 8, -8, 0] }}
-              transition={{ repeat: Infinity, duration: 4 }}
+              transition={{
+                repeat: Infinity,
+                duration: 4,
+                ease: "easeInOut",
+              }}
               className="text-4xl mb-3"
             >
               📚
             </motion.div>
+
             <h3 className="font-bold text-lg mb-2 text-gray-900 dark:text-white">
               Knowledge Base
             </h3>
+
             <p className="text-sm text-gray-600 dark:text-gray-300">
               Access comprehensive information about organ donation, eligibility,
               and processes.
@@ -70,21 +76,26 @@ const ChatbotPage = () => {
             custom={1}
             variants={cardVariants}
             initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
+            animate="visible"
             whileHover={{ scale: 1.05, y: -6 }}
             className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 cursor-pointer transition-all"
           >
             <motion.div
               animate={{ scale: [1, 1.2, 1] }}
-              transition={{ repeat: Infinity, duration: 3 }}
+              transition={{
+                repeat: Infinity,
+                duration: 3,
+                ease: "easeInOut",
+              }}
               className="text-4xl mb-3"
             >
               💡
             </motion.div>
+
             <h3 className="font-bold text-lg mb-2 text-gray-900 dark:text-white">
               Myth Busting
             </h3>
+
             <p className="text-sm text-gray-600 dark:text-gray-300">
               Get facts and debunk common misconceptions about organ donation.
             </p>
@@ -95,21 +106,26 @@ const ChatbotPage = () => {
             custom={2}
             variants={cardVariants}
             initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
+            animate="visible"
             whileHover={{ scale: 1.05, y: -6 }}
             className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 cursor-pointer transition-all"
           >
             <motion.div
               animate={{ y: [0, -6, 0] }}
-              transition={{ repeat: Infinity, duration: 2.5 }}
+              transition={{
+                repeat: Infinity,
+                duration: 2.5,
+                ease: "easeInOut",
+              }}
               className="text-4xl mb-3"
             >
               🤝
             </motion.div>
+
             <h3 className="font-bold text-lg mb-2 text-gray-900 dark:text-white">
               24/7 Support
             </h3>
+
             <p className="text-sm text-gray-600 dark:text-gray-300">
               Our AI assistant is available anytime to guide you through your
               journey.

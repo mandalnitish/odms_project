@@ -124,9 +124,9 @@ const DoctorReviewDashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-10 w-10 border-4 border-emerald-500 border-t-transparent mx-auto mb-3"></div>
           <p className="text-gray-600 dark:text-gray-400">Loading documents...</p>
         </div>
       </div>
@@ -134,17 +134,17 @@ const DoctorReviewDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 py-8 px-4">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-6 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-[1600px] mx-auto">
 
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid lg:grid-cols-3 gap-4">
           
           {/* Document List */}
           <div className="lg:col-span-2">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm p-4 sm:p-5 border border-slate-200 dark:border-slate-800">
               
               {/* Filter Tabs */}
-              <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
+              <div className="flex gap-1 mb-4 p-1 bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-slate-800 overflow-x-auto">
                 {[
                   { value: 'pending', label: 'Pending', count: pendingCount },
                   { value: 'approved', label: 'Approved', count: approvedCount },
@@ -154,10 +154,10 @@ const DoctorReviewDashboard = () => {
                   <button
                     key={tab.value}
                     onClick={() => setFilterStatus(tab.value)}
-                    className={`px-4 py-2 font-semibold transition-colors border-b-2 whitespace-nowrap ${
+                    className={`px-3 py-2 text-sm font-semibold rounded-lg transition-all whitespace-nowrap border-0 ${
                       filterStatus === tab.value
-                        ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                        : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'text-slate-500 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200'
                     }`}
                   >
                     {tab.label} ({tab.count})
@@ -166,7 +166,7 @@ const DoctorReviewDashboard = () => {
               </div>
 
               {/* Document Cards */}
-              <div className="space-y-4 max-h-[600px] overflow-y-auto">
+              <div className="space-y-3 max-h-[680px] overflow-y-auto pr-1">
                 {filteredDocs.length === 0 ? (
                   <div className="text-center py-12">
                     <FileText className="mx-auto text-gray-300 dark:text-gray-600 mb-3" size={48} />
@@ -176,17 +176,17 @@ const DoctorReviewDashboard = () => {
                   filteredDocs.map(doc => (
                     <div
                       key={doc.firestoreId}
-                      className={`border rounded-lg p-4 cursor-pointer transition-all hover:shadow-md ${
+                      className={`border rounded-xl p-3 cursor-pointer transition-all hover:shadow-sm ${
                         selectedDoc?.firestoreId === doc.firestoreId
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                          : 'border-gray-200 dark:border-gray-700'
+                          ? 'border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/20'
+                          : 'border-slate-200 dark:border-slate-800'
                       }`}
                       onClick={() => setSelectedDoc(doc)}
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <FileText size={20} className="text-gray-500" />
+                            <FileText size={17} className="text-gray-500" />
                             <h3 className="font-semibold text-gray-900 dark:text-white">
                               {doc.typeName}
                             </h3>
@@ -219,17 +219,17 @@ const DoctorReviewDashboard = () => {
 
                       {/* Doctor Review Preview */}
                       {doc.doctorReview && (
-                        <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg text-sm">
-                          <p className="text-blue-800 dark:text-blue-300">
+                        <div className="bg-emerald-50 dark:bg-emerald-950/20 p-3 rounded-lg text-sm">
+                          <p className="text-emerald-800 dark:text-emerald-300">
                             <strong>Review:</strong> {doc.doctorReview.comment}
                           </p>
-                          <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                          <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
                             by {doc.doctorReview.doctorName}
                           </p>
                         </div>
                       )}
 
-                      <button className="mt-3 w-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-4 py-2 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors flex items-center justify-center gap-2">
+                      <button className="mt-3 w-full bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 px-3 py-2 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-950/40 transition-colors flex items-center justify-center gap-2 text-sm font-semibold">
                         <Eye size={16} />
                         {selectedDoc?.firestoreId === doc.firestoreId ? 'Viewing Details' : 'View & Review'}
                       </button>
@@ -242,16 +242,16 @@ const DoctorReviewDashboard = () => {
 
           {/* Review Panel */}
           <div className="lg:col-span-1">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-gray-700 sticky top-4">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm p-4 sm:p-5 border border-slate-200 dark:border-slate-800 sticky top-4">
               {selectedDoc ? (
                 <div className="space-y-4">
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                    <Shield size={24} />
+                  <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                    <Shield size={19} className="text-emerald-500" />
                     Document Review
                   </h2>
 
                   {/* Document Info */}
-                  <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg space-y-2">
+                  <div className="bg-slate-50 dark:bg-slate-950/60 p-3 rounded-xl space-y-2 border border-slate-100 dark:border-slate-800">
                     <p className="text-sm">
                       <strong className="text-gray-900 dark:text-white">Document:</strong>{' '}
                       <span className="text-gray-700 dark:text-gray-300">{selectedDoc.typeName}</span>
@@ -288,12 +288,12 @@ const DoctorReviewDashboard = () => {
 
                   {/* AI Analysis */}
                   {selectedDoc.aiAnalysis && (
-                    <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-                      <h3 className="font-semibold text-blue-800 dark:text-blue-300 mb-2 flex items-center gap-2">
+                    <div className="bg-emerald-50 dark:bg-emerald-950/20 p-3 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                      <h3 className="font-semibold text-emerald-800 dark:text-emerald-300 mb-2 flex items-center gap-2">
                         <AlertTriangle size={16} />
                         AI Pre-Analysis
                       </h3>
-                      <div className="text-sm text-blue-700 dark:text-blue-400 space-y-1">
+                      <div className="text-sm text-emerald-700 dark:text-emerald-400 space-y-1">
                         <p>• Readable: {selectedDoc.aiAnalysis.readable ? '✅ Yes' : '❌ No'}</p>
                         <p>• Appears Genuine: {selectedDoc.aiAnalysis.appears_genuine ? '✅ Yes' : '❌ No'}</p>
                         <p>• Complete: {selectedDoc.aiAnalysis.complete ? '✅ Yes' : '❌ No'}</p>
@@ -306,7 +306,7 @@ const DoctorReviewDashboard = () => {
                   )}
 
                   {/* Document Preview/Download */}
-                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                  <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
                     {selectedDoc.fileType?.startsWith('image/') ? (
                       <img 
                         src={`data:${selectedDoc.fileType};base64,${selectedDoc.fileData}`}
@@ -315,7 +315,7 @@ const DoctorReviewDashboard = () => {
                       />
                     ) : (
                       <div className="w-full h-64 bg-gray-100 dark:bg-gray-900 flex flex-col items-center justify-center">
-                        <FileText size={48} className="text-gray-400 mb-3" />
+                        <FileText size={36} className="text-gray-400 mb-3" />
                         <p className="text-gray-600 dark:text-gray-400 text-sm">PDF Document</p>
                       </div>
                     )}
@@ -332,7 +332,7 @@ const DoctorReviewDashboard = () => {
 
                   {/* Review Form (only for pending) */}
                   {selectedDoc.status === 'pending' && (
-                    <div className="space-y-3 border-t border-gray-200 dark:border-gray-700 pt-4">
+                    <div className="space-y-3 border-t border-slate-200 dark:border-slate-800 pt-4">
                       <label className="block">
                         <span className="text-sm font-semibold text-gray-900 dark:text-white mb-2 block">
                           Review Comment *
@@ -341,7 +341,7 @@ const DoctorReviewDashboard = () => {
                           value={reviewComment}
                           onChange={(e) => setReviewComment(e.target.value)}
                           placeholder="Enter your review comments..."
-                          className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+                          className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
                           rows={4}
                         />
                       </label>
@@ -367,7 +367,7 @@ const DoctorReviewDashboard = () => {
 
                   {/* Existing Review */}
                   {selectedDoc.doctorReview && (
-                    <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
                       <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Doctor Review</h3>
                       <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
                         {selectedDoc.doctorReview.comment}

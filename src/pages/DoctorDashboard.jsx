@@ -58,7 +58,7 @@ function loadTrackingGoogleMaps() {
 function Spinner() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-      <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+      <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 }
@@ -771,7 +771,7 @@ function TrackingModal({ match, onClose, onSave, hospitals, doctors }) {
               {selectedHospital && (
                 <div className="mt-4 rounded-2xl bg-blue-50 dark:bg-blue-950/25 border border-blue-100 dark:border-blue-900 p-4">
                   <p className="font-bold text-blue-900 dark:text-blue-200">{selectedHospital.name}</p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  <p className="text-sm text-slate-300 mt-2">
                     {trackingData.hospitalAddress || "Address not available"}
                   </p>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
@@ -1006,7 +1006,7 @@ function TrackingModal({ match, onClose, onSave, hospitals, doctors }) {
                             {new Date(event.timestamp).toLocaleString()}
                           </p>
                           {event.description && (
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                            <p className="text-sm text-slate-300 mt-2">
                               {event.description}
                             </p>
                           )}
@@ -1386,7 +1386,7 @@ export default function DoctorDashboard() {
       : [];
 
   return (
-    <div className="min-h-screen p-4 lg:p-8 bg-gradient-to-br from-purple-100 via-pink-100 to-blue-100 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 transition-all">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-300">
       {loading && <Spinner />}
       {selectedMatch && (
         <TrackingModal
@@ -1400,35 +1400,52 @@ export default function DoctorDashboard() {
         />
       )}
 
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
         {/* Header */}
-        <header className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 mb-6 shadow-xl border border-white/20">
-          <div className="flex justify-between items-center flex-wrap gap-4">
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                Doctor Dashboard
-              </h1>
-              <p className="text-gray-600 dark:text-gray-400 mt-1">
-                Real-time organ transplant management system
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={runMatching}
-                disabled={loading}
-                className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:shadow-lg transition-all hover:scale-105 disabled:opacity-50"
-              >
-                <span className="flex items-center gap-2">
-                  <span>⚡</span>
-                  <span>{loading ? "Matching..." : "AI Match"}</span>
-                </span>
-              </button>
-            </div>
-          </div>
-        </header>
+<header className="relative overflow-hidden bg-white dark:bg-slate-900 rounded-2xl p-6 sm:p-8 mb-6 shadow-sm border border-slate-200 dark:border-slate-800">
+  <div className="flex justify-between items-center flex-wrap gap-4">
+    <div>
+      <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-emerald-500 dark:text-emerald-400">
+        Doctor Dashboard
+      </h1>
+
+      <p className="text-slate-500 dark:text-slate-400 mt-2">
+        Real-time organ transplant management system
+      </p>
+    </div>
+
+    <div className="flex gap-3">
+      <button
+  onClick={runMatching}
+  disabled={loading}
+  className="
+    group inline-flex items-center justify-center gap-2
+    px-5 py-2.5
+    bg-transparent
+    border border-emerald-500/40
+    text-emerald-600 dark:text-emerald-400
+    text-sm font-bold
+    rounded-xl
+    hover:bg-emerald-500/10
+    hover:border-emerald-500
+    hover:-translate-y-0.5
+    active:translate-y-0 active:scale-[0.98]
+    transition-all duration-200
+    disabled:opacity-50 disabled:cursor-not-allowed
+  "
+>
+  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 text-sm">
+    ⚡
+  </span>
+
+  <span>{loading ? "Matching..." : "AI Match"}</span>
+</button>
+    </div>
+  </div>
+</header>
 
 {/* Stats Cards */}
-<div className="grid grid-cols-5 gap-2 mb-6">
+<div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
   {[
     {
       label: "Total Donors",
@@ -1468,21 +1485,21 @@ export default function DoctorDashboard() {
   ].map((stat) => (
     <div
       key={stat.label}
-      className={`bg-gradient-to-br ${stat.bg} backdrop-blur-xl rounded-xl p-3 shadow-lg border border-white/10 hover:scale-105 transition-transform cursor-default`}
+      className="group relative overflow-hidden bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200 dark:border-slate-800 hover:-translate-y-0.5 hover:shadow-lg transition-all cursor-default"
     >
       <div className="flex items-center gap-2">
         <div
-          className={`w-9 h-9 bg-gradient-to-br ${stat.gradient} rounded-lg flex items-center justify-center text-sm shadow-lg flex-shrink-0`}
+          className={`w-11 h-11 bg-gradient-to-br ${stat.gradient} rounded-xl flex items-center justify-center text-lg shadow-lg flex-shrink-0`}
         >
           {stat.icon}
         </div>
         <div className="min-w-0 flex-1">
           <p
-            className={`text-xl font-bold bg-gradient-to-r ${stat.gradient} bg-clip-text text-transparent leading-none`}
+            className="text-2xl font-black text-slate-900 dark:text-white leading-none"
           >
             {stat.value}
           </p>
-          <p className="text-[11px] font-medium text-gray-500 dark:text-gray-400 mt-0.5 leading-tight">
+          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1.5 leading-tight">
             {stat.label}
           </p>
         </div>
@@ -1492,19 +1509,19 @@ export default function DoctorDashboard() {
 </div>
 
         {/* Filters */}
-        <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 mb-6 shadow-lg border border-white/20">
-          <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-5 mb-6 shadow-sm border border-slate-200 dark:border-slate-800">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3">
             <input
               type="text"
               placeholder="🔍 Search by name..."
               value={searchName}
               onChange={(e) => setSearchName(e.target.value)}
-              className="px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all"
+              className="px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
             />
             <select
               value={filterBlood}
               onChange={(e) => setFilterBlood(e.target.value)}
-              className="px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 outline-none transition-all"
+              className="px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
             >
               <option value="">All Blood Groups</option>
               {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(
@@ -1518,7 +1535,7 @@ export default function DoctorDashboard() {
             <select
               value={filterOrgan}
               onChange={(e) => setFilterOrgan(e.target.value)}
-              className="px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 outline-none transition-all"
+              className="px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
             >
               <option value="">All Organs</option>
               {["Kidney", "Heart", "Liver", "Lung", "Eye", "Pancreas"].map(
@@ -1532,7 +1549,7 @@ export default function DoctorDashboard() {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 outline-none transition-all"
+              className="px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
             >
               <option value="">All Statuses</option>
               <option value="Pending">Pending</option>
@@ -1542,7 +1559,7 @@ export default function DoctorDashboard() {
             <select
               value={filterHospital}
               onChange={(e) => setFilterHospital(e.target.value)}
-              className="px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 outline-none transition-all"
+              className="px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
             >
               <option value="">All Hospitals</option>
               {hospitals.map((h) => (
@@ -1559,7 +1576,7 @@ export default function DoctorDashboard() {
                 setFilterStatus("");
                 setFilterHospital("");
               }}
-              className="px-4 py-3 bg-gray-200 dark:bg-gray-700 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all font-medium"
+              className="px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-all font-semibold"
             >
               Reset
             </button>
@@ -1567,7 +1584,7 @@ export default function DoctorDashboard() {
         </div>
 
    {/* Tabs */}
-<div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-2 mb-6 flex gap-1 shadow-lg border border-white/20 w-full">
+<div className="bg-white dark:bg-slate-900 rounded-2xl p-2 mb-6 flex gap-1.5 shadow-sm border border-slate-200 dark:border-slate-800 w-full overflow-x-auto">
   {[
     { id: "overview", label: "Overview", icon: "📊" },
     { id: "donors", label: "Donors", icon: "👥" },
@@ -1582,8 +1599,8 @@ export default function DoctorDashboard() {
       onClick={() => setActiveTab(tab.id)}
       className={`flex-1 px-3 py-3 rounded-xl transition-all font-medium text-sm whitespace-nowrap ${
         activeTab === tab.id
-          ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg"
-          : "hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
+          ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
+          : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
       }`}
     >
       <span className="flex items-center justify-center gap-2">
@@ -1600,7 +1617,7 @@ export default function DoctorDashboard() {
           {activeTab === "overview" && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Match Statistics */}
-              <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-white/20">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-800">
                 <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                   <span>📈</span>
                   <span>Match Statistics</span>
@@ -1667,7 +1684,7 @@ export default function DoctorDashboard() {
 
               {/* Doctor Profile + Team */}
               {doctor && (
-                <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-white/20">
+                <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-800">
                   <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                     <span>👨‍⚕️</span>
                     <span>Doctor Profile</span>
@@ -1739,7 +1756,7 @@ export default function DoctorDashboard() {
               )}
 
               {/* Hospital Distribution */}
-              <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-white/20 lg:col-span-2">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-800 lg:col-span-2">
                 <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                   <span>🏥</span>
                   <span>Hospital Distribution</span>
@@ -1755,7 +1772,7 @@ export default function DoctorDashboard() {
                     return (
                       <div
                         key={hospital.id}
-                        className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl"
+                        className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-100 dark:border-slate-800"
                       >
                         <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center text-white text-xl">
                           🏥
@@ -1787,7 +1804,7 @@ export default function DoctorDashboard() {
               </div>
 
               {/* Recent Activity */}
-              <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-white/20 lg:col-span-2">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-800 lg:col-span-2">
                 <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                   <span>🔔</span>
                   <span>Recent Activity</span>
@@ -1796,7 +1813,7 @@ export default function DoctorDashboard() {
                   {uniqueMatches.slice(0, 5).map((match, idx) => (
                     <div
                       key={match.id}
-                      className="flex items-center gap-4 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-all"
+                      className="flex items-center gap-4 p-3 bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-100 dark:border-slate-800 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-all"
                     >
                       <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center text-white font-bold">
                         {idx + 1}
@@ -1825,7 +1842,7 @@ export default function DoctorDashboard() {
 
           {/* Donors Tab */}
           {activeTab === "donors" && (
-            <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-white/20">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-800">
               <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
                 <span>👥</span>
                 <span>Available Donors</span>
@@ -1833,7 +1850,7 @@ export default function DoctorDashboard() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b-2 border-gray-200 dark:border-gray-700">
+                    <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-950/40">
                       <th className="text-left py-4 px-4 font-semibold">
                         Name
                       </th>
@@ -1865,7 +1882,7 @@ export default function DoctorDashboard() {
                       filteredDonors.map((donor) => (
                         <tr
                           key={donor.id}
-                          className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-all"
+                          className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors"
                         >
                           <td className="py-4 px-4 font-medium">
                             <Highlight
@@ -1913,7 +1930,7 @@ export default function DoctorDashboard() {
 
           {/* Recipients Tab */}
           {activeTab === "recipients" && (
-            <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-white/20">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-800">
               <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
                 <span>🏥</span>
                 <span>Waiting Recipients</span>
@@ -1921,7 +1938,7 @@ export default function DoctorDashboard() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b-2 border-gray-200 dark:border-gray-700">
+                    <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-950/40">
                       <th className="text-left py-4 px-4 font-semibold">
                         Name
                       </th>
@@ -1953,7 +1970,7 @@ export default function DoctorDashboard() {
                       filteredRecipients.map((recipient) => (
                         <tr
                           key={recipient.id}
-                          className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-all"
+                          className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors"
                         >
                           <td className="py-4 px-4 font-medium">
                             <Highlight
@@ -2001,7 +2018,7 @@ export default function DoctorDashboard() {
 
            {/* Matches Tab */}
   {activeTab === "matches" && (
-    <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-white/20">
+    <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-800">
       <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
         <span>🔗</span>
         <span>Transplant Matches</span>
@@ -2009,7 +2026,7 @@ export default function DoctorDashboard() {
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b-2 border-gray-200 dark:border-gray-700">
+            <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-950/40">
               <th className="text-left py-4 px-4 font-semibold">Donor</th>
               <th className="text-left py-4 px-4 font-semibold">Recipient</th>
               <th className="text-left py-4 px-4 font-semibold">Organ</th>
@@ -2034,7 +2051,7 @@ export default function DoctorDashboard() {
               filteredMatches.map((match) => (
                 <tr
                   key={match.id}
-                  className={`border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-all ${
+                  className={`border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors ${
                     updatedMatches[match.id] ? "bg-green-100 dark:bg-green-900/30" : ""
                   }`}
                 >
@@ -2114,7 +2131,7 @@ export default function DoctorDashboard() {
 
   {/* 🚨 Document Review Tab (Now Correctly Placed) */}
   {activeTab === "documents" && (
-    <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-white/20">
+    <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-800">
       <DoctorReviewDashboard
         matches={matches}
         doctors={doctors}
@@ -2124,13 +2141,13 @@ export default function DoctorDashboard() {
   )}
 
   {activeTab === "tracking" && (
-    <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-white/20">
-      <TrackingPage />
+    <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-800">
+      <TrackingPage userRole="doctor" />
     </div>
   )}
 
   {activeTab === "police" && (
-    <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-white/20">
+    <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-800">
       <PoliceVerificationAdmin />
     </div>
   )}

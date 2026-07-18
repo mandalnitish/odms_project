@@ -33,14 +33,14 @@ import {
 function Spinner() {
   return (
     <div className="flex justify-center py-6">
-      <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 }
 
 function StatCard({ icon: Icon, label, value }) {
   return (
-    <div className="bg-gradient-to-br from-blue-600/80 via-indigo-600/80 to-purple-600/80 rounded-2xl p-5 shadow-lg flex items-center justify-between">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-lg flex items-center justify-between">
       <div>
         <p className="text-sm text-white/80 mb-1">{label}</p>
         <p className="text-3xl font-bold text-white">{value}</p>
@@ -108,10 +108,10 @@ function DoctorModal({ open, onClose, onSave, initial }) {
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-slate-950 rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
           <h2 className="text-xl font-semibold flex items-center gap-2">
-            <Stethoscope className="w-5 h-5 text-purple-500" />
+            <Stethoscope className="w-5 h-5 text-emerald-500" />
             {initial ? "Edit Doctor" : "Add Doctor"}
           </h2>
           <button
@@ -130,7 +130,7 @@ function DoctorModal({ open, onClose, onSave, initial }) {
               required
               value={form.fullName}
               onChange={(e) => handleChange("fullName", e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 dark:bg-gray-800 outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-slate-700 dark:bg-slate-900 outline-none focus:ring-2 focus:ring-emerald-500"
               placeholder="Dr. Hathi"
             />
           </div>
@@ -142,7 +142,7 @@ function DoctorModal({ open, onClose, onSave, initial }) {
               required
               value={form.speciality}
               onChange={(e) => handleChange("speciality", e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 dark:bg-gray-800 outline-none focus:ring-2 focus:ring-purple-500"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-slate-700 dark:bg-slate-900 outline-none focus:ring-2 focus:ring-emerald-500"
               placeholder="Nephrologist"
             />
           </div>
@@ -154,7 +154,7 @@ function DoctorModal({ open, onClose, onSave, initial }) {
                 type="email"
                 value={form.email}
                 onChange={(e) => handleChange("email", e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 dark:bg-gray-800 outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-slate-700 dark:bg-slate-900 outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>
             <div>
@@ -163,7 +163,7 @@ function DoctorModal({ open, onClose, onSave, initial }) {
                 type="tel"
                 value={form.phone}
                 onChange={(e) => handleChange("phone", e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 dark:bg-gray-800 outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-slate-700 dark:bg-slate-900 outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>
           </div>
@@ -178,7 +178,7 @@ function DoctorModal({ open, onClose, onSave, initial }) {
                 onChange={(e) =>
                   handleChange("experienceYears", e.target.value)
                 }
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 dark:bg-gray-800 outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-slate-700 dark:bg-slate-900 outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>
             <div className="flex items-center gap-3 mt-6">
@@ -187,7 +187,7 @@ function DoctorModal({ open, onClose, onSave, initial }) {
                 type="checkbox"
                 checked={form.onCall}
                 onChange={(e) => handleChange("onCall", e.target.checked)}
-                className="w-4 h-4 rounded text-purple-600"
+                className="w-4 h-4 rounded text-emerald-600"
               />
               <label htmlFor="onCall" className="text-sm">
                 Available for emergency / on-call
@@ -195,17 +195,17 @@ function DoctorModal({ open, onClose, onSave, initial }) {
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700 mt-2">
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700 mt-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 rounded-xl bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-medium"
+              className="px-5 py-2.5 rounded-xl bg-gray-200 dark:bg-slate-800 hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-medium"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white text-sm font-semibold shadow-lg hover:shadow-xl"
+              className="px-6 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold shadow-lg hover:shadow-xl"
             >
               {initial ? "Save Changes" : "Add Doctor"}
             </button>
@@ -356,7 +356,7 @@ export default function HospitalDetailsPage() {
           <p className="text-red-400 mb-2">{error || "Hospital not found."}</p>
           <button
             onClick={() => navigate("/hospitals")}
-            className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+            className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Hospitals
@@ -367,7 +367,7 @@ export default function HospitalDetailsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-slate-900 text-gray-100">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
       <DoctorModal
         open={doctorModalOpen}
         onClose={() => {
@@ -391,14 +391,14 @@ export default function HospitalDetailsPage() {
 
           <Link
             to="/doctor"
-            className="hidden md:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-600 hover:bg-purple-700 text-sm"
+            className="hidden md:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-sm"
           >
             Go to Doctor Dashboard
           </Link>
         </div>
 
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600/80 via-indigo-600/80 to-purple-600/80 rounded-3xl p-6 md:p-8 shadow-2xl mb-8">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl mb-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex items-start gap-4">
               <div className="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center">
@@ -477,9 +477,9 @@ export default function HospitalDetailsPage() {
           {/* Left: Overview */}
           <div className="lg:col-span-2 space-y-6">
             {/* Address & general info */}
-            <div className="bg-gray-900/70 border border-gray-800 rounded-2xl p-5 shadow-lg">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-lg">
               <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                <Building2 className="w-5 h-5 text-blue-400" />
+                <Building2 className="w-5 h-5 text-emerald-400" />
                 Overview
               </h2>
               <p className="text-sm text-gray-300 mb-3">
@@ -488,19 +488,19 @@ export default function HospitalDetailsPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-300">
                 <div>
-                  <p className="text-gray-400 text-xs uppercase mb-1">
+                  <p className="text-slate-400 text-xs uppercase mb-1">
                     Established
                   </p>
                   <p>{hospital.established || "—"}</p>
                 </div>
                 <div>
-                  <p className="text-gray-400 text-xs uppercase mb-1">
+                  <p className="text-slate-400 text-xs uppercase mb-1">
                     Accreditation
                   </p>
                   <p>{hospital.accreditation || "—"}</p>
                 </div>
                 <div>
-                  <p className="text-gray-400 text-xs uppercase mb-1">
+                  <p className="text-slate-400 text-xs uppercase mb-1">
                     Status
                   </p>
                   <p>
@@ -519,10 +519,10 @@ export default function HospitalDetailsPage() {
             </div>
 
             {/* Departments */}
-            <div className="bg-gray-900/70 border border-gray-800 rounded-2xl p-5 shadow-lg">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-lg">
               <h2 className="text-lg font-semibold mb-3">Departments</h2>
               {departments.length === 0 ? (
-                <p className="text-sm text-gray-400">
+                <p className="text-sm text-slate-400">
                   No departments listed for this hospital.
                 </p>
               ) : (
@@ -535,10 +535,10 @@ export default function HospitalDetailsPage() {
             </div>
 
             {/* Facilities */}
-            <div className="bg-gray-900/70 border border-gray-800 rounded-2xl p-5 shadow-lg">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-lg">
               <h2 className="text-lg font-semibold mb-3">Facilities</h2>
               {facilities.length === 0 ? (
-                <p className="text-sm text-gray-400">
+                <p className="text-sm text-slate-400">
                   No facilities listed for this hospital.
                 </p>
               ) : (
@@ -553,20 +553,20 @@ export default function HospitalDetailsPage() {
 
           {/* Right: Doctors section */}
           <div className="space-y-4">
-            <div className="bg-gray-900/70 border border-gray-800 rounded-2xl p-5 shadow-lg">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-lg">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-lg font-semibold flex items-center gap-2">
-                    <Stethoscope className="w-5 h-5 text-purple-400" />
+                    <Stethoscope className="w-5 h-5 text-emerald-400" />
                     Doctors
                   </h2>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-slate-400">
                     Doctors associated with this hospital.
                   </p>
                 </div>
                 <button
                   onClick={handleAddDoctorClick}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-xs font-medium"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-xs font-medium"
                 >
                   <Plus className="w-4 h-4" />
                   Add Doctor
@@ -576,7 +576,7 @@ export default function HospitalDetailsPage() {
               {loadingDoctors ? (
                 <Spinner />
               ) : doctors.length === 0 ? (
-                <p className="text-sm text-gray-400">
+                <p className="text-sm text-slate-400">
                   No doctors added yet. Click{" "}
                   <span className="font-semibold">Add Doctor</span> to create
                   one.
@@ -586,7 +586,7 @@ export default function HospitalDetailsPage() {
                   {doctors.map((docItem) => (
                     <div
                       key={docItem.id}
-                      className="bg-gray-800/80 rounded-xl p-3 flex items-start justify-between gap-3"
+                      className="bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl p-3 flex items-start justify-between gap-3"
                     >
                       <div className="flex gap-3">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-sm font-semibold">
@@ -626,7 +626,7 @@ export default function HospitalDetailsPage() {
                       <div className="flex flex-col gap-2">
                         <button
                           onClick={() => handleEditDoctorClick(docItem)}
-                          className="p-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+                          className="p-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white"
                           title="Edit doctor"
                         >
                           <Edit2 className="w-4 h-4" />
@@ -645,7 +645,7 @@ export default function HospitalDetailsPage() {
               )}
             </div>
 
-            <div className="bg-gray-900/70 border border-gray-800 rounded-2xl p-4 text-xs text-gray-400">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 text-xs text-slate-400">
               <p>
                 Tip: You can link these doctors logically with your{" "}
                 <span className="font-semibold text-purple-300">

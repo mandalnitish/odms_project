@@ -1,10 +1,20 @@
 // src/components/OrganTrackingMap.jsx
 
 import React, {
+  useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
+
+import {
+  doc,
+  serverTimestamp,
+  updateDoc,
+} from "firebase/firestore";
+
+import { db } from "../firebase";
 
 // ======================================================
 // GOOGLE MAPS API KEY
@@ -13,227 +23,128 @@ import React, {
 const GOOGLE_MAPS_API_KEY =
   import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
-// Prevent Google Maps from loading multiple times
-let googleMapsPromise = null;
-
 // ======================================================
 // GOOGLE MAPS LOADER
 // ======================================================
 
+let googleMapsPromise = null;
+
 function loadGoogleMaps() {
-  // Already loaded
+  // Google Maps is already loaded
   if (window.google?.maps?.importLibrary) {
     return Promise.resolve(window.google);
   }
 
-  // Already loading
+  // Existing loader promise
   if (googleMapsPromise) {
     return googleMapsPromise;
   }
 
-  googleMapsPromise = new Promise(
-    (resolve, reject) => {
-      if (!GOOGLE_MAPS_API_KEY) {
-        reject(
-          new Error(
-            "Google Maps API key is missing. Add VITE_GOOGLE_MAPS_API_KEY to your .env file."
-          )
-        );
-
-        return;
-      }
-
-      // ==================================================
-      // GOOGLE OFFICIAL-STYLE BOOTSTRAP LOADER
-      // ==================================================
-
-      ((g) => {
-        let h;
-        let a;
-        let k;
-
-        const p =
-          "The Google Maps JavaScript API";
-
-        const c =
-          "google";
-
-        const l =
-          "importLibrary";
-
-        const q =
-          "__ib__";
-
-        const m =
-          document;
-
-        let b =
-          window;
-
-        b =
-          b[c] ||
-          (b[c] = {});
-
-        const d =
-          b.maps ||
-          (b.maps = {});
-
-        const r =
-          new Set();
-
-        const e =
-          new URLSearchParams();
-
-        const u = () =>
-          h ||
-          (h =
-            new Promise(
-              async (
-                resolveScript,
-                rejectScript
-              ) => {
-                a =
-                  m.createElement(
-                    "script"
-                  );
-
-                e.set(
-                  "libraries",
-                  [...r] + ""
-                );
-
-                for (k in g) {
-                  e.set(
-                    k.replace(
-                      /[A-Z]/g,
-                      (t) =>
-                        "_" +
-                        t[0].toLowerCase()
-                    ),
-                    g[k]
-                  );
-                }
-
-                e.set(
-                  "callback",
-                  c +
-                    ".maps." +
-                    q
-                );
-
-                a.src =
-                  `https://maps.${c}apis.com/maps/api/js?` +
-                  e.toString();
-
-                d[q] =
-                  resolveScript;
-
-                a.onerror =
-                  () => {
-                    h =
-                      null;
-
-                    rejectScript(
-                      new Error(
-                        p +
-                          " could not load."
-                      )
-                    );
-                  };
-
-                a.nonce =
-                  m.querySelector(
-                    "script[nonce]"
-                  )?.nonce ||
-                  "";
-
-                m.head.append(
-                  a
-                );
-              }
-            ));
-
-        if (d[l]) {
-          console.warn(
-            p +
-              " is already loaded. Using the existing loader."
-          );
-        } else {
-          d[l] = (
-            library,
-            ...args
-          ) => {
-            r.add(
-              library
-            );
-
-            return u().then(
-              () =>
-                d[l](
-                  library,
-                  ...args
-                )
-            );
-          };
-        }
-      })({
-        key:
-          GOOGLE_MAPS_API_KEY,
-
-        v:
-          "weekly",
-      });
-
-      // ==================================================
-      // LOAD MAPS LIBRARY
-      // ==================================================
-
-      window.google.maps
-        .importLibrary(
-          "maps"
+  googleMapsPromise = new Promise((resolve, reject) => {
+    if (!GOOGLE_MAPS_API_KEY) {
+      reject(
+        new Error(
+          "VITE_GOOGLE_MAPS_API_KEY is missing."
         )
-        .then(() => {
-          resolve(
-            window.google
-          );
-        })
-        .catch(
-          (error) => {
-            console.error(
-              "Google Maps loading error:",
-              error
-            );
+      );
+
+      return;
+    }
+
+    // Check whether another component already added
+    // the Google Maps JavaScript API script.
+    const existingScript =
+      document.querySelector(
+        'script[src*="maps.googleapis.com/maps/api/js"]'
+      );
+
+    if (existingScript) {
+      let attempts = 0;
+
+      const waitForGoogle =
+        setInterval(() => {
+          attempts += 1;
+
+          if (window.google?.maps?.importLibrary) {
+            clearInterval(waitForGoogle);
+            resolve(window.google);
+            return;
+          }
+
+          if (attempts > 100) {
+            clearInterval(waitForGoogle);
+
+            googleMapsPromise = null;
 
             reject(
-              error
+              new Error(
+                "Google Maps script exists but did not initialize."
+              )
             );
           }
-        );
+        }, 100);
+
+      return;
     }
-  );
+
+    const callback =
+      "__organTrackingGoogleMapsReady";
+
+    window[callback] = () => {
+      delete window[callback];
+
+      if (window.google?.maps) {
+        resolve(window.google);
+      } else {
+        googleMapsPromise = null;
+
+        reject(
+          new Error(
+            "Google Maps loaded but API is unavailable."
+          )
+        );
+      }
+    };
+
+    const script =
+      document.createElement("script");
+
+    script.id =
+      "organ-tracking-google-maps";
+
+    script.async = true;
+    script.defer = true;
+
+    script.src =
+      `https://maps.googleapis.com/maps/api/js` +
+      `?key=${encodeURIComponent(
+        GOOGLE_MAPS_API_KEY
+      )}` +
+      `&loading=async` +
+      `&libraries=routes` +
+      `&callback=${callback}`;
+
+    script.onerror = () => {
+      googleMapsPromise = null;
+
+      reject(
+        new Error(
+          "Google Maps failed to load."
+        )
+      );
+    };
+
+    document.head.appendChild(script);
+  });
 
   return googleMapsPromise;
 }
 
 // ======================================================
 // LOCATION HELPER
-//
-// Supports Firestore GeoPoint:
-// {
-//   latitude: 21.52,
-//   longitude: 72.99
-// }
-//
-// Supports normal object:
-// {
-//   lat: 21.52,
-//   lng: 72.99
-// }
 // ======================================================
 
-function getCoords(
-  location
-) {
+function getCoords(location) {
   if (!location) {
     return null;
   }
@@ -247,10 +158,8 @@ function getCoords(
     location.lng;
 
   if (
-    lat === undefined ||
-    lng === undefined ||
-    lat === null ||
-    lng === null
+    lat == null ||
+    lng == null
   ) {
     return null;
   }
@@ -262,27 +171,119 @@ function getCoords(
     Number(lng);
 
   if (
-    Number.isNaN(
-      latitude
-    ) ||
-    Number.isNaN(
-      longitude
-    )
+    !Number.isFinite(latitude) ||
+    !Number.isFinite(longitude)
   ) {
     return null;
   }
 
   return {
-    lat:
-      latitude,
-
-    lng:
-      longitude,
+    lat: latitude,
+    lng: longitude,
   };
 }
 
 // ======================================================
-// CREATE SVG MARKER ICON
+// NORMALIZE ROAD PATH
+// ======================================================
+
+function normalizeRoadPath(path) {
+  if (!Array.isArray(path)) {
+    return null;
+  }
+
+  const normalized =
+    path
+      .map((point) => {
+        if (!point) {
+          return null;
+        }
+
+        const lat =
+          typeof point.lat === "function"
+            ? point.lat()
+            : Number(
+                point.lat ??
+                point.latitude
+              );
+
+        const lng =
+          typeof point.lng === "function"
+            ? point.lng()
+            : Number(
+                point.lng ??
+                point.longitude
+              );
+
+        if (
+          !Number.isFinite(lat) ||
+          !Number.isFinite(lng)
+        ) {
+          return null;
+        }
+
+        return {
+          lat,
+          lng,
+        };
+      })
+      .filter(Boolean);
+
+  if (normalized.length < 2) {
+    return null;
+  }
+
+  return normalized;
+}
+
+// ======================================================
+// STATUS HELPER
+// ======================================================
+
+function normalizeStatus(status) {
+  return String(status || "")
+    .trim()
+    .toLowerCase();
+}
+
+// ======================================================
+// ETA FORMAT
+// ======================================================
+
+function formatDuration(minutes) {
+  if (minutes == null) {
+    return "N/A";
+  }
+
+  const safeMinutes =
+    Math.max(
+      0,
+      Math.round(
+        Number(minutes)
+      )
+    );
+
+  if (safeMinutes < 60) {
+    return `${safeMinutes} min`;
+  }
+
+  const hours =
+    Math.floor(
+      safeMinutes / 60
+    );
+
+  const remainingMinutes =
+    safeMinutes % 60;
+
+  if (remainingMinutes === 0) {
+    return `${hours} hr`;
+  }
+
+  return `${hours} hr ${remainingMinutes} min`;
+}
+
+// ======================================================
+// MARKER ICON
 // ======================================================
 
 function createMarkerIcon(
@@ -291,16 +292,15 @@ function createMarkerIcon(
 ) {
   const svg = `
     <svg
+      xmlns="http://www.w3.org/2000/svg"
       width="50"
       height="50"
       viewBox="0 0 50 50"
-      xmlns="http://www.w3.org/2000/svg"
     >
-
       <circle
         cx="25"
         cy="25"
-        r="17"
+        r="20"
         fill="${color}"
         stroke="white"
         stroke-width="4"
@@ -311,60 +311,75 @@ function createMarkerIcon(
           ? `
             <text
               x="25"
-              y="31"
+              y="32"
               text-anchor="middle"
-              font-size="19"
+              font-size="20"
             >
               ${emoji}
             </text>
           `
           : ""
       }
-
     </svg>
   `;
 
   return (
     "data:image/svg+xml;charset=UTF-8," +
-    encodeURIComponent(
-      svg
-    )
+    encodeURIComponent(svg)
   );
 }
 
 // ======================================================
-// DURATION FORMATTER
-//
-// Example:
-// 213 minutes -> 3 hr 33 min
-// 120 minutes -> 2 hr
-// 45 minutes  -> 45 min
+// LOCALSTORAGE ROUTE HELPERS
 // ======================================================
 
-function formatDuration(
-  minutes
-) {
-  const hours =
-    Math.floor(
-      minutes / 60
+function getSavedRoute(transferId) {
+  try {
+    const saved =
+      window.localStorage.getItem(
+        `organRoute_${transferId}`
+      );
+
+    if (!saved) {
+      return null;
+    }
+
+    const parsed =
+      JSON.parse(saved);
+
+    return normalizeRoadPath(parsed);
+  } catch (error) {
+    console.error(
+      "Failed to restore saved route:",
+      error
     );
 
-  const mins =
-    minutes % 60;
-
-  if (
-    hours === 0
-  ) {
-    return `${mins} min`;
+    return null;
   }
+}
 
-  if (
-    mins === 0
-  ) {
-    return `${hours} hr`;
+function saveRoute(
+  transferId,
+  roadPath
+) {
+  try {
+    const normalized =
+      normalizeRoadPath(roadPath);
+
+    if (!normalized) {
+      return;
+    }
+
+    window.localStorage.setItem(
+      `organRoute_${transferId}`,
+      JSON.stringify(normalized)
+    );
+  } catch (error) {
+    console.error(
+      "Failed to save route:",
+      error
+    );
   }
-
-  return `${hours} hr ${mins} min`;
 }
 
 // ======================================================
@@ -373,6 +388,7 @@ function formatDuration(
 
 export default function OrganTrackingMap({
   transfers = [],
+  onRoutesReady,
 }) {
   const mapContainerRef =
     useRef(null);
@@ -380,71 +396,256 @@ export default function OrganTrackingMap({
   const mapRef =
     useRef(null);
 
-  // Markers + polylines
-  const overlaysRef =
+  // ====================================================
+  // LATEST TRANSFERS REF
+  //
+  // IMPORTANT:
+  // Route rebuilding must NOT directly depend on the
+  // transfers array.
+  //
+  // Firestore frequently changes:
+  // - vehicleLocation
+  // - routeProgress
+  // - status
+  // - timestamps
+  //
+  // Those changes should update the vehicle marker,
+  // NOT rebuild the complete Google route.
+  // ====================================================
+
+  const transfersRef =
+    useRef(transfers);
+
+  // Donor and recipient markers
+  const staticMarkersRef =
     useRef([]);
+
+  // Road route polylines
+  const routePolylinesRef =
+    useRef([]);
+
+  // Ambulance markers
+  const vehicleMarkersRef =
+    useRef({});
+
+  // In-memory road route cache
+  const routeCacheRef =
+    useRef({});
+
+  // Prevent repeated Firestore migration attempts
+  const firestoreMigrationRef =
+    useRef(new Set());
+
+  // Prevent stale asynchronous route requests
+  const routeGenerationRef =
+    useRef(0);
+
+  // Stable callback reference
+  const onRoutesReadyRef =
+    useRef(onRoutesReady);
+
+  // Prevent duplicate onRoutesReady callback
+  const lastRoutesReadyKeyRef =
+    useRef("");
 
   const [
     mapReady,
     setMapReady,
-  ] = useState(
-    false
-  );
+  ] = useState(false);
 
   const [
     mapError,
     setMapError,
-  ] = useState(
-    ""
-  );
+  ] = useState("");
 
   const [
     routeInfo,
     setRouteInfo,
-  ] = useState(
-    []
-  );
+  ] = useState([]);
+
+  // ====================================================
+  // KEEP LATEST TRANSFERS
+  // ====================================================
+
+  useEffect(() => {
+    transfersRef.current =
+      transfers;
+  }, [transfers]);
+
+  // ====================================================
+  // KEEP CALLBACK CURRENT
+  // ====================================================
+
+  useEffect(() => {
+    onRoutesReadyRef.current =
+      onRoutesReady;
+  }, [onRoutesReady]);
+
+  // ====================================================
+  // ROUTE ENDPOINT KEY
+  //
+  // Only route-relevant information is included.
+  //
+  // Vehicle movement does NOT change this key.
+  // routeProgress does NOT change this key.
+  // timestamps do NOT change this key.
+  //
+  // Therefore those Firestore updates do not cause
+  // the complete road route to rebuild.
+  // ====================================================
+
+  const routeEndpointsKey =
+    useMemo(() => {
+      return transfers
+        .map((transfer) => {
+          const donor =
+            getCoords(
+              transfer.donorLocation
+            );
+
+          const recipient =
+            getCoords(
+              transfer.recipientLocation
+            );
+
+          if (
+            !donor ||
+            !recipient
+          ) {
+            return `${transfer.id}:invalid`;
+          }
+
+          const firestorePath =
+            normalizeRoadPath(
+              transfer.roadPath
+            );
+
+          return [
+            transfer.id,
+
+            donor.lat,
+            donor.lng,
+
+            recipient.lat,
+            recipient.lng,
+
+            transfer.urgencyLevel ||
+              "normal",
+
+            firestorePath
+              ? firestorePath.length
+              : 0,
+          ].join(":");
+        })
+        .sort()
+        .join("|");
+    }, [transfers]);
+
+  // ====================================================
+  // VEHICLE LOCATION KEY
+  //
+  // Only used for moving ambulance markers.
+  // Does NOT rebuild road routes.
+  // ====================================================
+
+  const vehicleLocationsKey =
+    useMemo(() => {
+      return transfers
+        .map((transfer) => {
+          const vehicle =
+            getCoords(
+              transfer.vehicleLocation
+            );
+
+          return [
+            transfer.id,
+
+            normalizeStatus(
+              transfer.status
+            ),
+
+            vehicle?.lat ??
+              "",
+
+            vehicle?.lng ??
+              "",
+          ].join(":");
+        })
+        .sort()
+        .join("|");
+    }, [transfers]);
+
+  // ====================================================
+  // CLEAN STATIC MAP OBJECTS
+  // ====================================================
+
+  const clearStaticMapObjects =
+    useCallback(() => {
+      staticMarkersRef.current.forEach(
+        (marker) => {
+          marker?.setMap?.(
+            null
+          );
+        }
+      );
+
+      staticMarkersRef.current =
+        [];
+
+      routePolylinesRef.current.forEach(
+        (polyline) => {
+          polyline?.setMap?.(
+            null
+          );
+        }
+      );
+
+      routePolylinesRef.current =
+        [];
+    }, []);
 
   // ====================================================
   // INITIALIZE GOOGLE MAP
   // ====================================================
 
   useEffect(() => {
-    let active =
-      true;
+    let mounted = true;
 
     async function initializeMap() {
       try {
-        setMapError(
-          ""
-        );
+        setMapError("");
 
         const google =
           await loadGoogleMaps();
 
         if (
-          !active ||
+          !mounted ||
           !mapContainerRef.current
         ) {
           return;
         }
 
-        const {
-          Map,
-        } =
-          await google.maps.importLibrary(
-            "maps"
+        await google.maps.importLibrary(
+          "maps"
+        );
+
+        if (!mounted) {
+          return;
+        }
+
+        // Do not initialize map twice
+        if (mapRef.current) {
+          setMapReady(
+            true
           );
 
-        if (!active) {
           return;
         }
 
         mapRef.current =
-          new Map(
+          new google.maps.Map(
             mapContainerRef.current,
             {
-              // Default Gujarat location
               center: {
                 lat:
                   22.3,
@@ -473,15 +674,17 @@ export default function OrganTrackingMap({
         setMapReady(
           true
         );
-      } catch (
-        error
-      ) {
+
+        console.log(
+          "✅ Organ tracking Google Map ready"
+        );
+      } catch (error) {
         console.error(
           "Google Maps initialization failed:",
           error
         );
 
-        if (active) {
+        if (mounted) {
           setMapError(
             error?.message ||
               "Google Maps could not be loaded."
@@ -493,169 +696,166 @@ export default function OrganTrackingMap({
     initializeMap();
 
     return () => {
-      active =
+      mounted =
         false;
     };
   }, []);
 
   // ====================================================
-  // DRAW TRANSFERS + ROUTES
+  // BUILD / REBUILD GOOGLE ROAD ROUTES
+  //
+  // ROUTE PRIORITY:
+  //
+  // 1. Firestore roadPath
+  // 2. Memory cache
+  // 3. localStorage
+  // 4. Google Routes API
+  //
+  // IMPORTANT FIX:
+  //
+  // This effect does NOT depend directly on `transfers`.
+  //
+  // It only depends on `routeEndpointsKey`.
+  //
+  // Therefore vehicle movement will NOT continuously
+  // rebuild the complete road route.
   // ====================================================
 
   useEffect(() => {
     if (
       !mapReady ||
-      !mapRef.current ||
-      !window.google
-        ?.maps
-        ?.importLibrary
+      !mapRef.current
     ) {
       return;
     }
 
+    const generation =
+      ++routeGenerationRef.current;
+
     let cancelled =
       false;
 
-    async function drawTransfers() {
-      const google =
-        window.google;
-
-      // ================================================
-      // REMOVE OLD MARKERS AND ROUTES
-      // ================================================
-
-      overlaysRef.current.forEach(
-        (overlay) => {
-          if (
-            overlay &&
-            typeof overlay.setMap ===
-              "function"
-          ) {
-            overlay.setMap(
-              null
-            );
-          }
-        }
-      );
-
-      overlaysRef.current =
-        [];
-
-      setRouteInfo(
-        []
-      );
-
-      // ================================================
-      // LOAD NEW ROUTES LIBRARY
-      // ================================================
-
-      let Route;
-
+    async function calculateRoutes() {
       try {
+        const google =
+          await loadGoogleMaps();
+
+        if (
+          cancelled ||
+          generation !==
+            routeGenerationRef.current
+        ) {
+          return;
+        }
+
+        // =============================================
+        // USE LATEST TRANSFERS
+        // =============================================
+
+        const currentTransfers =
+          transfersRef.current;
+
+        // =============================================
+        // CLEAR OLD DONOR / RECIPIENT / ROUTES
+        // =============================================
+
+        clearStaticMapObjects();
+
+        setRouteInfo([]);
+
+        const routesForSimulation =
+          {};
+
+        const newRouteInfo =
+          [];
+
+        const bounds =
+          new google.maps.LatLngBounds();
+
+        let hasLocations =
+          false;
+
+        // =============================================
+        // LOAD ROUTES LIBRARY
+        // =============================================
+
         const routesLibrary =
           await google.maps.importLibrary(
             "routes"
           );
 
-        Route =
-          routesLibrary.Route;
-
-        console.log(
-          "Google Routes library loaded."
-        );
-      } catch (
-        error
-      ) {
-        console.error(
-          "Could not load Google Routes library:",
-          error
-        );
-
-        Route =
-          null;
-      }
-
-      if (cancelled) {
-        return;
-      }
-
-      // ================================================
-      // CREATE MAP BOUNDS
-      // ================================================
-
-      const bounds =
-        new google.maps.LatLngBounds();
-
-      let hasValidLocation =
-        false;
-
-      const newRouteInfo =
-        [];
-
-      // ================================================
-      // PROCESS EACH TRANSFER
-      // ================================================
-
-      for (
-        const transfer
-        of transfers
-      ) {
-        if (cancelled) {
+        if (
+          cancelled ||
+          generation !==
+            routeGenerationRef.current
+        ) {
           return;
         }
 
-        const donor =
-          getCoords(
-            transfer.donorLocation
-          );
+        const Route =
+          routesLibrary.Route;
 
-        const recipient =
-          getCoords(
-            transfer.recipientLocation
+        if (!Route) {
+          throw new Error(
+            "Google Route API is unavailable."
           );
+        }
 
-        const vehicle =
-          getCoords(
-            transfer.vehicleLocation
-          );
+        // =============================================
+        // PROCESS EVERY TRANSFER CURRENTLY ON MAP
+        // =============================================
 
-        // Donor + recipient required
-        if (
-          !donor ||
-          !recipient
+        for (
+          const transfer
+          of currentTransfers
         ) {
-          console.warn(
-            "Skipping transfer because donor or recipient coordinates are missing:",
-            transfer.id
-          );
+          if (
+            cancelled ||
+            generation !==
+              routeGenerationRef.current
+          ) {
+            return;
+          }
 
-          continue;
-        }
+          const donor =
+            getCoords(
+              transfer.donorLocation
+            );
 
-        hasValidLocation =
-          true;
+          const recipient =
+            getCoords(
+              transfer.recipientLocation
+            );
 
-        bounds.extend(
-          donor
-        );
+          if (
+            !donor ||
+            !recipient
+          ) {
+            console.warn(
+              "Skipping transfer with invalid locations:",
+              transfer.id
+            );
 
-        bounds.extend(
-          recipient
-        );
+            continue;
+          }
 
-        if (vehicle) {
+          hasLocations =
+            true;
+
           bounds.extend(
-            vehicle
+            donor
           );
-        }
 
-        // ==============================================
-        // DONOR MARKER
-        // ==============================================
+          bounds.extend(
+            recipient
+          );
 
-        const donorMarker =
-          new google.maps.Marker(
-            {
+          // ===========================================
+          // DONOR MARKER
+          // ===========================================
+
+          const donorMarker =
+            new google.maps.Marker({
               position:
                 donor,
 
@@ -687,66 +887,18 @@ export default function OrganTrackingMap({
                     22
                   ),
               },
-            }
+            });
+
+          staticMarkersRef.current.push(
+            donorMarker
           );
 
-        const donorInfo =
-          new google.maps.InfoWindow(
-            {
-              content: `
-                <div
-                  style="
-                    color:#111;
-                    padding:6px;
-                    min-width:150px;
-                  "
-                >
+          // ===========================================
+          // RECIPIENT MARKER
+          // ===========================================
 
-                  <strong>
-                    🟢 Donor
-                  </strong>
-
-                  <br/>
-
-                  ${
-                    transfer.donorName ||
-                    "Unknown"
-                  }
-
-                  <br/>
-
-                  Organ:
-                  ${
-                    transfer.organType ||
-                    "N/A"
-                  }
-
-                </div>
-              `,
-            }
-          );
-
-        donorMarker.addListener(
-          "click",
-          () => {
-            donorInfo.open(
-              mapRef.current,
-              donorMarker
-            );
-          }
-        );
-
-        overlaysRef.current.push(
-          donorMarker
-        );
-
-        // ==============================================
-        // RECIPIENT MARKER
-        // ==============================================
-
-        const recipientMarker =
-          new google.maps.Marker(
-            {
+          const recipientMarker =
+            new google.maps.Marker({
               position:
                 recipient,
 
@@ -778,177 +930,175 @@ export default function OrganTrackingMap({
                     22
                   ),
               },
-            }
+            });
+
+          staticMarkersRef.current.push(
+            recipientMarker
           );
 
-        const recipientInfo =
-          new google.maps.InfoWindow(
-            {
-              content: `
-                <div
-                  style="
-                    color:#111;
-                    padding:6px;
-                    min-width:150px;
-                  "
-                >
+          const isCritical =
+            String(
+              transfer.urgencyLevel ||
+                ""
+            ).toLowerCase() ===
+            "critical";
 
-                  <strong>
-                    🔴 Recipient
-                  </strong>
+          // ===========================================
+          // ROUTE INFORMATION DEFAULTS
+          // ===========================================
 
-                  <br/>
+          let distanceKm =
+            transfer.routeDistanceKm !=
+            null
+              ? Number(
+                  transfer.routeDistanceKm
+                )
+              : null;
 
-                  ${
-                    transfer.recipientName ||
-                    "Unknown"
-                  }
+          let durationMinutes =
+            transfer.routeDurationMinutes !=
+            null
+              ? Number(
+                  transfer.routeDurationMinutes
+                )
+              : null;
 
-                  <br/>
+          // ===========================================
+          // 1. FIRESTORE PERMANENT ROAD PATH
+          // ===========================================
 
-                  Urgency:
-                  ${
-                    transfer.urgencyLevel ||
-                    "Normal"
-                  }
+          let roadPath =
+            normalizeRoadPath(
+              transfer.roadPath
+            );
 
-                </div>
-              `,
-            }
-          );
+          if (roadPath) {
+            routeCacheRef.current[
+              transfer.id
+            ] =
+              roadPath;
 
-        recipientMarker.addListener(
-          "click",
-          () => {
-            recipientInfo.open(
-              mapRef.current,
-              recipientMarker
+            // Browser fallback
+            saveRoute(
+              transfer.id,
+              roadPath
+            );
+
+            console.log(
+              "🔥 Using Firestore saved road route:",
+              transfer.id
             );
           }
-        );
 
-        overlaysRef.current.push(
-          recipientMarker
-        );
+          // ===========================================
+          // 2. MEMORY CACHE
+          // ===========================================
 
-        // ==============================================
-        // VEHICLE MARKER
-        // Visible until delivery
-        // ==============================================
+          if (!roadPath) {
+            roadPath =
+              normalizeRoadPath(
+                routeCacheRef.current[
+                  transfer.id
+                ]
+              );
 
-        if (
-          vehicle &&
-          transfer.status !==
-            "delivered"
-        ) {
-          const vehicleMarker =
-            new google.maps.Marker(
-              {
-                position:
-                  vehicle,
-
-                map:
-                  mapRef.current,
-
-                title:
-                  "Organ Transport Vehicle",
-
-                zIndex:
-                  999,
-
-                icon: {
-                  url:
-                    createMarkerIcon(
-                      "#f59e0b",
-                      "🚑"
-                    ),
-
-                  scaledSize:
-                    new google.maps.Size(
-                      50,
-                      50
-                    ),
-
-                  anchor:
-                    new google.maps.Point(
-                      25,
-                      25
-                    ),
-                },
-              }
-            );
-
-          const vehicleInfo =
-            new google.maps.InfoWindow(
-              {
-                content: `
-                  <div
-                    style="
-                      color:#111;
-                      padding:6px;
-                      min-width:160px;
-                    "
-                  >
-
-                    <strong>
-                      🚑 Transport Vehicle
-                    </strong>
-
-                    <br/>
-
-                    Organ:
-                    ${
-                      transfer.organType ||
-                      "N/A"
-                    }
-
-                    <br/>
-
-                    Status:
-                    ${
-                      transfer.status ||
-                      "Unknown"
-                    }
-
-                  </div>
-                `,
-              }
-            );
-
-          vehicleMarker.addListener(
-            "click",
-            () => {
-              vehicleInfo.open(
-                mapRef.current,
-                vehicleMarker
+            if (roadPath) {
+              console.log(
+                "⚡ Using memory cached road route:",
+                transfer.id
               );
             }
-          );
+          }
 
-          overlaysRef.current.push(
-            vehicleMarker
-          );
-        }
+          // ===========================================
+          // 3. LOCALSTORAGE FALLBACK
+          // ===========================================
 
-        // ==============================================
-        // ACTUAL GOOGLE ROAD ROUTE
-        // NEW ROUTES API
-        // ==============================================
+          if (!roadPath) {
+            const localRoute =
+              getSavedRoute(
+                transfer.id
+              );
 
-        const isCritical =
-          transfer.urgencyLevel ===
-          "critical";
+            if (localRoute) {
+              roadPath =
+                localRoute;
 
-        let routeCreated =
-          false;
+              routeCacheRef.current[
+                transfer.id
+              ] =
+                localRoute;
 
-        if (Route) {
-          try {
-            const {
-              routes,
-            } =
-              await Route.computeRoutes(
-                {
+              console.log(
+                "💾 Using localStorage road route:",
+                transfer.id
+              );
+
+              // =======================================
+              // MIGRATE LOCAL ROUTE TO FIRESTORE
+              // =======================================
+
+              if (
+                !firestoreMigrationRef.current.has(
+                  transfer.id
+                )
+              ) {
+                firestoreMigrationRef.current.add(
+                  transfer.id
+                );
+
+                try {
+                  await updateDoc(
+                    doc(
+                      db,
+                      "organTransfers",
+                      transfer.id
+                    ),
+                    {
+                      roadPath:
+                        localRoute,
+
+                      routeCalculatedAt:
+                        serverTimestamp(),
+                    }
+                  );
+
+                  console.log(
+                    "🔥 localStorage route migrated to Firestore:",
+                    transfer.id
+                  );
+                } catch (
+                  migrationError
+                ) {
+                  console.warn(
+                    "Could not migrate localStorage route to Firestore:",
+                    migrationError
+                  );
+                }
+              }
+            }
+          }
+
+          // ===========================================
+          // 4. GOOGLE ROUTES API
+          //
+          // Google is called ONLY when no saved route
+          // exists in:
+          //
+          // - Firestore
+          // - memory
+          // - localStorage
+          // ===========================================
+
+          if (!roadPath) {
+            try {
+              console.log(
+                "🌐 No saved route. Calling Google Routes API:",
+                transfer.id
+              );
+
+              const result =
+                await Route.computeRoutes({
                   origin:
                     donor,
 
@@ -963,158 +1113,158 @@ export default function OrganTrackingMap({
                     "distanceMeters",
                     "durationMillis",
                   ],
-                }
-              );
+                });
 
-            if (
-              cancelled
-            ) {
-              return;
-            }
+              if (
+                cancelled ||
+                generation !==
+                  routeGenerationRef.current
+              ) {
+                return;
+              }
 
-            if (
-              routes &&
-              routes.length >
-                0
-            ) {
               const route =
-                routes[0];
+                result?.routes?.[
+                  0
+                ];
 
-              // ========================================
-              // CREATE GOOGLE ROUTE POLYLINES
-              // ========================================
-
-              const polylines =
-                route.createPolylines();
-
-              polylines.forEach(
-                (
-                  polyline
-                ) => {
-                  polyline.setOptions(
-                    {
-                      strokeColor:
-                        isCritical
-                          ? "#ef4444"
-                          : "#3b82f6",
-
-                      strokeOpacity:
-                        0.9,
-
-                      strokeWeight:
-                        5,
-                    }
+              if (route) {
+                const computedPath =
+                  normalizeRoadPath(
+                    route.path
                   );
 
-                  polyline.setMap(
-                    mapRef.current
-                  );
+                if (
+                  computedPath
+                ) {
+                  roadPath =
+                    computedPath;
 
-                  overlaysRef.current.push(
-                    polyline
-                  );
-                }
-              );
+                  // ===================================
+                  // SAVE TO MEMORY
+                  // ===================================
 
-              routeCreated =
-                true;
+                  routeCacheRef.current[
+                    transfer.id
+                  ] =
+                    computedPath;
 
-              // ========================================
-              // DISTANCE
-              // ========================================
+                  // ===================================
+                  // SAVE TO LOCALSTORAGE
+                  // ===================================
 
-              const distanceKm =
-                route.distanceMeters
-                  ? (
-                      route.distanceMeters /
-                      1000
-                    ).toFixed(
-                      1
-                    )
-                  : null;
-
-              // ========================================
-              // DURATION
-              // ========================================
-
-              const durationMinutes =
-                route.durationMillis
-                  ? Math.round(
-                      route.durationMillis /
-                        60000
-                    )
-                  : null;
-
-              console.log(
-                "🚑 Route Distance:",
-                distanceKm
-                  ? `${distanceKm} km`
-                  : "N/A"
-              );
-
-              console.log(
-                "⏱️ Estimated Time:",
-                durationMinutes
-                  ? formatDuration(
-                      durationMinutes
-                    )
-                  : "N/A"
-              );
-
-              newRouteInfo.push(
-                {
-                  id:
+                  saveRoute(
                     transfer.id,
+                    computedPath
+                  );
 
-                  organType:
-                    transfer.organType ||
-                    "Organ",
+                  // ===================================
+                  // DISTANCE
+                  // ===================================
 
-                  distance:
-                    distanceKm,
+                  if (
+                    route.distanceMeters !=
+                    null
+                  ) {
+                    distanceKm =
+                      Number(
+                        (
+                          route.distanceMeters /
+                          1000
+                        ).toFixed(
+                          1
+                        )
+                      );
+                  }
 
-                  duration:
-                    durationMinutes,
+                  // ===================================
+                  // ETA
+                  // ===================================
+
+                  if (
+                    route.durationMillis !=
+                    null
+                  ) {
+                    durationMinutes =
+                      Math.round(
+                        route.durationMillis /
+                          60000
+                      );
+                  }
+
+                  // ===================================
+                  // SAVE PERMANENTLY TO FIRESTORE
+                  // ===================================
+
+                  try {
+                    await updateDoc(
+                      doc(
+                        db,
+                        "organTransfers",
+                        transfer.id
+                      ),
+                      {
+                        roadPath:
+                          computedPath,
+
+                        routeDistanceKm:
+                          distanceKm,
+
+                        routeDurationMinutes:
+                          durationMinutes,
+
+                        routeCalculatedAt:
+                          serverTimestamp(),
+                      }
+                    );
+
+                    console.log(
+                      "🔥 Google road route permanently saved to Firestore:",
+                      transfer.id
+                    );
+                  } catch (
+                    firestoreError
+                  ) {
+                    console.error(
+                      "Failed to save Google road route to Firestore:",
+                      firestoreError
+                    );
+                  }
                 }
+              }
+            } catch (error) {
+              console.error(
+                `Google route failed for ${transfer.id}:`,
+                error
               );
             }
-          } catch (
-            error
-          ) {
-            console.error(
-              `Routes API failed for transfer ${transfer.id}:`,
-              error
-            );
           }
-        }
 
-        // ==============================================
-        // FALLBACK
-        // If Routes API fails, show straight line
-        // ==============================================
+          if (
+            cancelled ||
+            generation !==
+              routeGenerationRef.current
+          ) {
+            return;
+          }
 
-        if (
-          !routeCreated
-        ) {
-          const fallbackPath =
-            [
-              donor,
+          // ===========================================
+          // DRAW ROAD PATH
+          // ===========================================
 
-              vehicle,
+          if (roadPath) {
+            routesForSimulation[
+              transfer.id
+            ] =
+              roadPath;
 
-              recipient,
-            ].filter(
-              Boolean
-            );
-
-          const fallbackLine =
-            new google.maps.Polyline(
-              {
+            const routePolyline =
+              new google.maps.Polyline({
                 path:
-                  fallbackPath,
+                  roadPath,
 
                 geodesic:
-                  true,
+                  false,
 
                 strokeColor:
                   isCritical
@@ -1122,78 +1272,450 @@ export default function OrganTrackingMap({
                     : "#3b82f6",
 
                 strokeOpacity:
-                  0.8,
+                  0.95,
 
                 strokeWeight:
-                  4,
+                  5,
+
+                zIndex:
+                  10,
 
                 map:
                   mapRef.current,
-              }
+              });
+
+            routePolylinesRef.current.push(
+              routePolyline
             );
 
-          overlaysRef.current.push(
-            fallbackLine
-          );
+            roadPath.forEach(
+              (
+                point
+              ) => {
+                bounds.extend(
+                  point
+                );
+              }
+            );
+          } else {
+            console.warn(
+              "⚠️ No road path available for transfer:",
+              transfer.id
+            );
+          }
 
-          console.warn(
-            `Using fallback straight route for transfer ${transfer.id}.`
-          );
+          // ===========================================
+          // ROUTE INFORMATION
+          // ===========================================
+
+          newRouteInfo.push({
+            id:
+              transfer.id,
+
+            organType:
+              transfer.organType ||
+              "Organ",
+
+            urgencyLevel:
+              transfer.urgencyLevel ||
+              "normal",
+
+            distanceKm,
+
+            durationMinutes,
+          });
         }
-      }
 
-      // ================================================
-      // UPDATE ROUTE INFORMATION
-      // ================================================
+        if (
+          cancelled ||
+          generation !==
+            routeGenerationRef.current
+        ) {
+          return;
+        }
 
-      if (
-        !cancelled
-      ) {
+        // =============================================
+        // UPDATE ROUTE INFORMATION UI
+        // =============================================
+
         setRouteInfo(
           newRouteInfo
         );
-      }
 
-      // ================================================
-      // FIT MAP TO ALL LOCATIONS
-      // ================================================
+        // =============================================
+        // DEDUPLICATE ROUTES READY CALLBACK
+        //
+        // This prevents TrackingPage from receiving
+        // identical route data repeatedly.
+        // =============================================
 
-      if (
-        hasValidLocation &&
-        !cancelled
-      ) {
-        mapRef.current.fitBounds(
-          bounds
-        );
+        const routesReadyKey =
+          Object.entries(
+            routesForSimulation
+          )
+            .map(
+              ([
+                transferId,
+                path,
+              ]) => {
+                const first =
+                  path?.[
+                    0
+                  ];
 
-        google.maps.event.addListenerOnce(
-          mapRef.current,
-          "idle",
-          () => {
-            if (
-              mapRef.current &&
-              mapRef.current.getZoom() >
-                13
-            ) {
-              mapRef.current.setZoom(
-                13
-              );
-            }
+                const last =
+                  path?.[
+                    path.length -
+                      1
+                  ];
+
+                return [
+                  transferId,
+
+                  path?.length ||
+                    0,
+
+                  first?.lat ??
+                    "",
+
+                  first?.lng ??
+                    "",
+
+                  last?.lat ??
+                    "",
+
+                  last?.lng ??
+                    "",
+                ].join(":");
+              }
+            )
+            .sort()
+            .join("|");
+
+        // =============================================
+        // ONLY NOTIFY WHEN ROUTES ACTUALLY CHANGED
+        // =============================================
+
+        if (
+          routesReadyKey !==
+          lastRoutesReadyKeyRef.current
+        ) {
+          lastRoutesReadyKeyRef.current =
+            routesReadyKey;
+
+          if (
+            typeof
+              onRoutesReadyRef.current ===
+            "function"
+          ) {
+            onRoutesReadyRef.current(
+              routesForSimulation
+            );
           }
+
+          console.log(
+            "✅ Road routes ready:",
+            Object.keys(
+              routesForSimulation
+            )
+          );
+        }
+
+        // =============================================
+        // FIT MAP TO VISIBLE TRANSFERS
+        // =============================================
+
+        if (
+          hasLocations &&
+          !bounds.isEmpty()
+        ) {
+          mapRef.current.fitBounds(
+            bounds,
+            60
+          );
+        }
+      } catch (error) {
+        console.error(
+          "Failed to rebuild road routes:",
+          error
         );
+
+        if (!cancelled) {
+          setMapError(
+            error?.message ||
+              "Google Routes API could not be loaded."
+          );
+        }
       }
     }
 
-    drawTransfers();
+    calculateRoutes();
 
     return () => {
       cancelled =
         true;
     };
   }, [
-    transfers,
     mapReady,
+    routeEndpointsKey,
+    clearStaticMapObjects,
   ]);
+
+  // ====================================================
+  // VEHICLE MARKER EFFECT
+  //
+  // This runs when vehicle location/status changes.
+  // It moves the ambulance marker WITHOUT rebuilding
+  // the Google road route.
+  // ====================================================
+
+  useEffect(() => {
+    if (
+      !mapReady ||
+      !mapRef.current ||
+      !window.google?.maps
+    ) {
+      return;
+    }
+
+    const google =
+      window.google;
+
+    const activeVehicleIds =
+      new Set();
+
+    transfers.forEach(
+      (
+        transfer
+      ) => {
+        const status =
+          normalizeStatus(
+            transfer.status
+          );
+
+        const vehicle =
+          getCoords(
+            transfer.vehicleLocation
+          );
+
+        if (
+          !vehicle ||
+          status !==
+            "in_transit"
+        ) {
+          return;
+        }
+
+        activeVehicleIds.add(
+          transfer.id
+        );
+
+        const existingMarker =
+          vehicleMarkersRef.current[
+            transfer.id
+          ];
+
+        // =============================================
+        // UPDATE EXISTING AMBULANCE MARKER
+        // =============================================
+
+        if (
+          existingMarker
+        ) {
+          existingMarker.setPosition(
+            vehicle
+          );
+
+          existingMarker.setMap(
+            mapRef.current
+          );
+
+          return;
+        }
+
+        // =============================================
+        // CREATE AMBULANCE MARKER
+        // =============================================
+
+        const marker =
+          new google.maps.Marker({
+            position:
+              vehicle,
+
+            map:
+              mapRef.current,
+
+            title:
+              "Organ Transport Vehicle",
+
+            zIndex:
+              999,
+
+            icon: {
+              url:
+                createMarkerIcon(
+                  "#f59e0b",
+                  "🚑"
+                ),
+
+              scaledSize:
+                new google.maps.Size(
+                  50,
+                  50
+                ),
+
+              anchor:
+                new google.maps.Point(
+                  25,
+                  25
+                ),
+            },
+          });
+
+        const infoWindow =
+          new google.maps.InfoWindow({
+            content: `
+              <div
+                style="
+                  color:#111;
+                  padding:6px;
+                  min-width:160px;
+                "
+              >
+                <strong>
+                  🚑 Transport Vehicle
+                </strong>
+
+                <br/>
+
+                Organ:
+                ${
+                  transfer.organType ||
+                  "N/A"
+                }
+
+                <br/>
+
+                Status:
+                In Transit
+              </div>
+            `,
+          });
+
+        marker.addListener(
+          "click",
+          () => {
+            infoWindow.open({
+              map:
+                mapRef.current,
+
+              anchor:
+                marker,
+            });
+          }
+        );
+
+        vehicleMarkersRef.current[
+          transfer.id
+        ] =
+          marker;
+      }
+    );
+
+    // ==================================================
+    // REMOVE OLD VEHICLE MARKERS
+    // ==================================================
+
+    Object.keys(
+      vehicleMarkersRef.current
+    ).forEach(
+      (
+        transferId
+      ) => {
+        if (
+          !activeVehicleIds.has(
+            transferId
+          )
+        ) {
+          vehicleMarkersRef.current[
+            transferId
+          ]?.setMap?.(
+            null
+          );
+
+          delete vehicleMarkersRef.current[
+            transferId
+          ];
+        }
+      }
+    );
+  }, [
+    mapReady,
+    vehicleLocationsKey,
+    transfers,
+  ]);
+
+  // ====================================================
+  // COMPONENT CLEANUP
+  // ====================================================
+
+  useEffect(() => {
+    return () => {
+      // Cancel any pending route calculation
+      routeGenerationRef.current +=
+        1;
+
+      // Clear static markers
+      staticMarkersRef.current.forEach(
+        (
+          marker
+        ) => {
+          marker?.setMap?.(
+            null
+          );
+        }
+      );
+
+      // Clear route polylines
+      routePolylinesRef.current.forEach(
+        (
+          polyline
+        ) => {
+          polyline?.setMap?.(
+            null
+          );
+        }
+      );
+
+      // Clear vehicle markers
+      Object.values(
+        vehicleMarkersRef.current
+      ).forEach(
+        (
+          marker
+        ) => {
+          marker?.setMap?.(
+            null
+          );
+        }
+      );
+
+      staticMarkersRef.current =
+        [];
+
+      routePolylinesRef.current =
+        [];
+
+      vehicleMarkersRef.current =
+        {};
+
+      routeCacheRef.current =
+        {};
+
+      lastRoutesReadyKeyRef.current =
+        "";
+    };
+  }, []);
 
   // ====================================================
   // ERROR UI
@@ -1209,17 +1731,22 @@ export default function OrganTrackingMap({
           border
           border-red-500/30
           flex
+          flex-col
+          gap-2
           items-center
           justify-center
           p-6
           text-red-400
+          text-center
         "
       >
-        Google Maps Error:
-        {" "}
-        {
-          mapError
-        }
+        <strong>
+          Google Maps Error
+        </strong>
+
+        <span>
+          {mapError}
+        </span>
       </div>
     );
   }
@@ -1230,7 +1757,6 @@ export default function OrganTrackingMap({
 
   return (
     <div>
-
       <div
         className="
           rounded-xl
@@ -1245,11 +1771,7 @@ export default function OrganTrackingMap({
             "500px",
         }}
       >
-
-        {/* LOADING */}
-
         {!mapReady && (
-
           <div
             className="
               absolute
@@ -1264,10 +1786,7 @@ export default function OrganTrackingMap({
           >
             Loading Google Maps...
           </div>
-
         )}
-
-        {/* GOOGLE MAP */}
 
         <div
           ref={
@@ -1281,89 +1800,77 @@ export default function OrganTrackingMap({
               "100%",
           }}
         />
-
       </div>
 
-      {/* ============================================ */}
+      {/* ================================================= */}
       {/* ROUTE INFORMATION */}
-      {/* ============================================ */}
+      {/* ================================================= */}
 
       {routeInfo.length >
         0 && (
-
-        <div className="mt-3 flex flex-wrap gap-3">
-
+        <div className="flex flex-wrap gap-3 mt-3">
           {routeInfo.map(
             (
-              route
+              info
             ) => (
-
               <div
                 key={
-                  route.id
+                  info.id
                 }
                 className="
-                  bg-gray-800
-                  border
-                  border-gray-700
-                  rounded-lg
-                  px-4
-                  py-2
-                  text-sm
-                  text-gray-300
-                "
+  bg-white
+  dark:bg-slate-800
+  text-slate-700
+  dark:text-slate-200
+  border
+  border-slate-200
+  dark:border-slate-700
+  rounded-lg
+  px-4
+  py-2
+  text-sm
+  shadow-sm
+  transition-colors
+  duration-300
+"
               >
-
-                🚑
-                {" "}
+                🚑{" "}
 
                 <strong>
                   {
-                    route.organType
+                    info.organType
                   }
                 </strong>
 
-                {route.distance && (
-
-                  <span>
+                {info.distanceKm !=
+                  null && (
+                  <>
                     {" "}
-                    •
-                    {" "}
+                    •{" "}
                     {
-                      route.distance
-                    }
-                    {" "}
+                      info.distanceKm
+                    }{" "}
                     km
-                  </span>
-
+                  </>
                 )}
 
-                {route.duration && (
-
-                  <span>
+                {info.durationMinutes !=
+                  null && (
+                  <>
                     {" "}
-                    •
-                    {" "}
-                    ETA
-                    {" "}
+                    • ETA{" "}
                     {
                       formatDuration(
-                        route.duration
+                        info.durationMinutes
                       )
                     }
-                  </span>
-
+                  </>
                 )}
-
               </div>
-
             )
           )}
-
         </div>
-
       )}
-
     </div>
   );
 }

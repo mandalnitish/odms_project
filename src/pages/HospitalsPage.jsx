@@ -619,7 +619,7 @@ function HospitalModal({
   return (
     <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50 p-4">
 
-      <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl w-full max-w-2xl shadow-xl max-h-[95vh] overflow-y-auto">
+      <div className="bg-white dark:bg-slate-950 p-6 rounded-2xl w-full max-w-2xl shadow-xl max-h-[95vh] overflow-y-auto">
 
         {/* HEADER */}
 
@@ -670,7 +670,7 @@ function HospitalModal({
 
               {placesLoading && (
 
-                <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg text-gray-400">
+                <div className="bg-gray-100 dark:bg-slate-900 p-3 rounded-lg text-slate-400">
 
                   Loading Google Places...
 
@@ -691,7 +691,7 @@ function HospitalModal({
                 }
               />
 
-              <p className="text-xs text-gray-400 mt-2">
+              <p className="text-xs text-slate-400 mt-2">
 
                 Start typing a hospital name and
                 select the correct hospital from
@@ -733,7 +733,7 @@ function HospitalModal({
                   event.target.value,
               }))
             }
-            className="w-full bg-gray-100 dark:bg-gray-800 p-3 rounded-lg"
+            className="w-full bg-gray-100 dark:bg-slate-900 p-3 rounded-lg"
           />
 
           {/* ======================================== */}
@@ -755,7 +755,7 @@ function HospitalModal({
                   event.target.value,
               }))
             }
-            className="w-full bg-gray-100 dark:bg-gray-800 p-3 rounded-lg"
+            className="w-full bg-gray-100 dark:bg-slate-900 p-3 rounded-lg"
           />
 
           {/* ======================================== */}
@@ -776,7 +776,7 @@ function HospitalModal({
                     event.target.value,
                 }))
               }
-              className="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg"
+              className="bg-gray-100 dark:bg-slate-900 p-3 rounded-lg"
             />
 
             <input
@@ -791,7 +791,7 @@ function HospitalModal({
                     event.target.value,
                 }))
               }
-              className="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg"
+              className="bg-gray-100 dark:bg-slate-900 p-3 rounded-lg"
             />
 
             <input
@@ -806,7 +806,7 @@ function HospitalModal({
                     event.target.value,
                 }))
               }
-              className="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg"
+              className="bg-gray-100 dark:bg-slate-900 p-3 rounded-lg"
             />
 
           </div>
@@ -830,7 +830,7 @@ function HospitalModal({
                     event.target.value,
                 }))
               }
-              className="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg"
+              className="bg-gray-100 dark:bg-slate-900 p-3 rounded-lg"
             />
 
             <input
@@ -846,7 +846,7 @@ function HospitalModal({
                     event.target.value,
                 }))
               }
-              className="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg"
+              className="bg-gray-100 dark:bg-slate-900 p-3 rounded-lg"
             />
 
           </div>
@@ -872,7 +872,7 @@ function HospitalModal({
                     key={
                       facility
                     }
-                    className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 p-2 rounded-lg cursor-pointer"
+                    className="flex items-center gap-2 bg-gray-100 dark:bg-slate-900 p-2 rounded-lg cursor-pointer"
                   >
 
                     <input
@@ -919,7 +919,7 @@ function HospitalModal({
                   event.target.value,
               }))
             }
-            className="w-full bg-gray-100 dark:bg-gray-800 p-3 rounded-lg"
+            className="w-full bg-gray-100 dark:bg-slate-900 p-3 rounded-lg"
           />
 
           {/* ======================================== */}
@@ -936,7 +936,7 @@ function HospitalModal({
                   event.target.value,
               }))
             }
-            className="w-full bg-gray-100 dark:bg-gray-800 p-3 rounded-lg"
+            className="w-full bg-gray-100 dark:bg-slate-900 p-3 rounded-lg"
           >
 
             <option value="Active">
@@ -959,7 +959,7 @@ function HospitalModal({
 
           <button
             type="submit"
-            className="w-full bg-green-600 hover:bg-green-700 text-white p-3 rounded-lg font-semibold mt-4"
+            className="w-full bg-transparent text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/10 hover:border-emerald-500 p-2.5 rounded-xl font-semibold mt-4 transition-all"
           >
 
             {editData
@@ -1250,17 +1250,17 @@ export default function HospitalsPage() {
 
   return (
 
-    <div className="min-h-screen px-6 py-10 text-white bg-gray-900">
+    <div className="min-h-screen px-4 sm:px-6 py-6 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
 
       {/* HEADER */}
 
-      <h1 className="text-4xl font-bold mb-3">
+      <h1 className="text-3xl font-black tracking-tight mb-1">
 
         Hospital Management
 
       </h1>
 
-      <p className="text-gray-400 mb-6">
+      <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
 
         Add and manage all partner hospitals
         with detailed information.
@@ -1271,7 +1271,7 @@ export default function HospitalsPage() {
 
       {successMsg && (
 
-        <div className="bg-green-700 p-3 mb-4 rounded-lg flex items-center gap-2">
+        <div className="bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 p-3 mb-4 rounded-xl flex items-center gap-2">
 
           <CheckCircle />
 
@@ -1281,75 +1281,86 @@ export default function HospitalsPage() {
 
       )}
 
-      {/* ADD HOSPITAL */}
+{/* ADD HOSPITAL + SEARCH */}
+<div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 mb-5 shadow-sm">
+  <div className="flex flex-col md:flex-row gap-3">
+    <div className="relative flex-1">
+      <Search
+        size={18}
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+      />
 
-      <div className="bg-gray-800 p-6 rounded-xl mb-6">
+      <input
+        placeholder="Search existing hospitals by name or city..."
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+        className="
+          w-full
+          pl-10 pr-4 py-2.5
+          bg-slate-50 dark:bg-slate-950
+          text-slate-900 dark:text-white
+          placeholder:text-slate-400
+          border border-slate-200 dark:border-slate-700
+          rounded-xl
+          outline-none
+          focus:border-emerald-500
+          focus:ring-4 focus:ring-emerald-500/10
+          transition-all
+        "
+      />
+    </div>
 
-        <button
-          onClick={
-            openAdd
-          }
-          className="bg-teal-600 px-6 py-3 rounded-lg font-semibold hover:bg-teal-700"
-        >
-
-          Add Hospital
-
-        </button>
-
-      </div>
-
-      {/* SEARCH */}
-
-      <div className="flex items-center gap-2 mb-4">
-
-        <Search />
-
-        <input
-          placeholder="Search existing hospitals by name or city..."
-          value={
-            search
-          }
-          onChange={(event) =>
-            setSearch(
-              event.target.value
-            )
-          }
-          className="bg-gray-800 p-3 rounded-lg flex-1"
-        />
-
-      </div>
+    <button
+      onClick={openAdd}
+      className="
+        inline-flex items-center justify-center gap-2
+        px-5 py-2.5
+        bg-transparent
+        text-emerald-600 dark:text-emerald-400
+        border border-emerald-500/40
+        rounded-xl
+        font-semibold
+        hover:bg-emerald-500/10
+        hover:border-emerald-500
+        transition-all
+      "
+    >
+      Add Hospital
+    </button>
+  </div>
+</div>
 
       {/* TABLE */}
 
-      <div className="bg-gray-800 rounded-xl overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
 
-        <table className="w-full text-left">
+        <div className="overflow-x-auto"><table className="w-full text-left">
 
-          <thead className="bg-gray-700">
+          <thead className="bg-slate-50 dark:bg-slate-950/60">
 
             <tr>
 
-              <th className="p-3">
+              <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 Name
               </th>
 
-              <th className="p-3">
+              <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 City
               </th>
 
-              <th className="p-3">
+              <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 Type
               </th>
 
-              <th className="p-3">
+              <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 Organs
               </th>
 
-              <th className="p-3">
+              <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 Beds
               </th>
 
-              <th className="p-3">
+              <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 Actions
               </th>
 
@@ -1366,22 +1377,22 @@ export default function HospitalsPage() {
                   key={
                     hospital.id
                   }
-                  className="border-t border-gray-700"
+                  className="border-t border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
                 >
 
-                  <td className="p-3">
+                  <td className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
 
                     {hospital.name}
 
                   </td>
 
-                  <td className="p-3">
+                  <td className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
 
                     {hospital.city}
 
                   </td>
 
-                  <td className="p-3">
+                  <td className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
 
                     {hospital.type}
 
@@ -1389,7 +1400,7 @@ export default function HospitalsPage() {
 
                   {/* FACILITIES */}
 
-                  <td className="p-3">
+                  <td className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
 
                     {hospital.facilities?.length > 0
 
@@ -1412,7 +1423,7 @@ export default function HospitalsPage() {
 
                   {/* BEDS */}
 
-                  <td className="p-3">
+                  <td className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
 
                     {hospital.totalBeds ||
                       "-"}
@@ -1421,7 +1432,7 @@ export default function HospitalsPage() {
 
                   {/* ACTIONS */}
 
-                  <td className="p-3 flex gap-2">
+                  <td className="px-4 py-3 flex items-center gap-2">
 
                     {/* EDIT */}
 
@@ -1437,7 +1448,7 @@ export default function HospitalsPage() {
                         );
 
                       }}
-                      className="bg-blue-600 px-3 py-2 rounded-lg hover:bg-blue-700"
+                      className="p-2 rounded-lg bg-transparent text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/10 hover:border-emerald-500 transition-all"
                     >
 
                       <Edit2
@@ -1454,7 +1465,7 @@ export default function HospitalsPage() {
                           hospital.id
                         )
                       }
-                      className="bg-red-600 px-3 py-2 rounded-lg hover:bg-red-700"
+                      className="p-2 rounded-lg bg-transparent text-red-600 dark:text-red-400 border border-red-500/40 hover:bg-red-500/10 hover:border-red-500 transition-all"
                     >
 
                       <Trash2
@@ -1479,7 +1490,7 @@ export default function HospitalsPage() {
 
                 <td
                   colSpan={6}
-                  className="text-center p-6 text-gray-400"
+                  className="text-center p-6 text-slate-400"
                 >
 
                   No hospitals found
@@ -1492,7 +1503,7 @@ export default function HospitalsPage() {
 
           </tbody>
 
-        </table>
+        </table></div>
 
       </div>
 

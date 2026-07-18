@@ -131,3 +131,30 @@
   opacity: 0.3;
   transform: scale(1.05);
 }
+
+
+/* =========================================================
+   WhatsApp Style Chat Scrollbar
+========================================================= */
+
+.chat-messages-container {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(11, 20, 26, 0.18) transparent;
+}
+
+.chat-messages-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-messages-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-messages-container::-webkit-scrollbar-thumb {
+  background: rgba(11, 20, 26, 0.18);
+  border-radius: 10px;
+}
+
+.chat-messages-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(11, 20, 26, 0.3);
+}

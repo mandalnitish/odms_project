@@ -50,9 +50,9 @@ function MatchDetailModal({ match, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0, 0, 0, 0.5)", backdropFilter: "blur(8px)" }}>
-      <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-slate-800">
         {/* Header */}
-        <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6 rounded-t-3xl z-10">
+        <div className="sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 p-6 rounded-t-3xl z-10">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold flex items-center gap-2">
               <span>📋</span>
@@ -157,12 +157,12 @@ function MatchDetailModal({ match, onClose }) {
                     key={idx}
                     className={`flex gap-3 ${idx !== match.timeline.length - 1 ? 'border-b border-gray-200 dark:border-gray-600 pb-3' : ''}`}
                   >
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
                       {idx + 1}
                     </div>
                     <div className="flex-1">
                       <p className="font-semibold">{event.status}</p>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                      <p className="text-xs text-slate-300 mt-2">
                         {new Date(event.timestamp).toLocaleString()}
                       </p>
                       {event.description && <p className="text-sm mt-1">{event.description}</p>}
@@ -345,7 +345,7 @@ useEffect(() => {
   );
 
   return (
-    <div className="min-h-screen p-4 lg:p-8 bg-gradient-to-br from-purple-100 via-pink-100 to-blue-100 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 transition-all">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-300">
       {loading && <Spinner />}
       {selectedMatch && (
         <MatchDetailModal
@@ -354,15 +354,15 @@ useEffect(() => {
         />
       )}
 
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
         {/* Header */}
-        <header className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 mb-6 shadow-xl border border-white/20">
+        <header className="relative overflow-hidden bg-white dark:bg-slate-900 rounded-2xl p-6 sm:p-8 mb-6 shadow-sm border border-slate-200 dark:border-slate-800">
           <div className="flex justify-between items-center flex-wrap gap-4">
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+              <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-emerald-500">
                 Donor Dashboard
               </h1>
-              <p className="text-gray-600 dark:text-gray-400 mt-1">Track your organ donation journey</p>
+              <p className="text-slate-500 dark:text-slate-400 mt-2">Track your organ donation journey </p>
             </div>
             <div className="flex gap-3">
               <button
@@ -388,7 +388,7 @@ useEffect(() => {
         </header>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
           {[
             { label: "Total Matches", value: deduplicatedMatches.length, icon: "🔗", gradient: "from-blue-500 to-blue-600" },
             { label: "Pending", value: deduplicatedMatches.filter(m => m.status === "Pending").length, icon: "⏳", gradient: "from-yellow-500 to-yellow-600" },
@@ -397,11 +397,11 @@ useEffect(() => {
           ].map((stat, index) => (
             <div
               key={stat.label}
-              className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-white/20 hover:scale-105 transition-transform"
+              className="group bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-800 hover:-translate-y-0.5 hover:shadow-lg transition-all"
               style={{ animationDelay: `${index * 0.1}s` }}
             >
               <div className="flex items-center justify-between mb-4">
-                <div className={`w-14 h-14 bg-gradient-to-br ${stat.gradient} rounded-xl flex items-center justify-center text-2xl shadow-lg`}>
+                <div className={`w-10 h-10 bg-gradient-to-br ${stat.gradient} rounded-lg flex items-center justify-center text-base shadow-sm`}>
                   {stat.icon}
                 </div>
                 <div className="text-right">
@@ -415,51 +415,107 @@ useEffect(() => {
           ))}
         </div>
 
-        {/* Profile Card */}
-        {userData && (
-          <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 mb-6 shadow-lg border border-white/20">
-            <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
-              <span>👤</span>
-              <span>Your Profile</span>
+        {/* Compact Profile Card */}
+{userData && (
+  <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 mb-5 shadow-sm border border-slate-200 dark:border-slate-800">
+    <div className="flex flex-col lg:flex-row lg:items-center gap-5">
+
+      {/* User Identity */}
+      <div className="flex items-center gap-3 lg:w-[32%]">
+        <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center text-white text-sm font-bold shadow-sm flex-shrink-0">
+          {userData.fullName
+            ?.split(" ")
+            .map((n) => n[0])
+            .join("")
+            .slice(0, 2) || "D"}
+        </div>
+
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm">👤</span>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white">
+              Your Profile
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <div className="flex items-start gap-3">
-                  <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center text-white text-2xl font-bold">
-                    {userData.fullName?.split(" ").map(n => n[0]).join("") || "D"}
-                  </div>
-                  <div>
-                    <p className="font-bold text-lg">{userData.fullName || "—"}</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{auth.currentUser?.email || "—"}</p>
-                  </div>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Blood Group</p>
-                  <p className="text-xl font-bold text-red-600 dark:text-red-400">{userData.bloodGroup || "—"}</p>
-                </div>
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Organ to Donate</p>
-                  <p className="text-xl font-bold text-indigo-600 dark:text-indigo-400">{userData.organType || "—"}</p>
-                </div>
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Hospital</p>
-                <p className="text-xl font-bold">{userData.hospitalName || "—"}</p>
-                <p className="text-sm text-gray-500">{userData.hospitalCity || ""}</p>
-               </div>
-              </div>
-            </div>
           </div>
-        )}
+
+          <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 mt-1 truncate">
+            {userData.fullName || "—"}
+          </p>
+
+          <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+            {auth.currentUser?.email || "—"}
+          </p>
+        </div>
+      </div>
+
+      {/* Profile Details */}
+      <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3">
+
+        {/* Blood Group */}
+        <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950/60 border border-slate-100 dark:border-slate-800 rounded-xl px-4 py-3">
+          <div className="w-8 h-8 rounded-lg bg-red-50 dark:bg-red-950/40 flex items-center justify-center text-sm flex-shrink-0">
+            🩸
+          </div>
+
+          <div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              Blood Group
+            </p>
+            <p className="text-base font-bold text-red-600 dark:text-red-400">
+              {userData.bloodGroup || "—"}
+            </p>
+          </div>
+        </div>
+
+        {/* Organ */}
+        <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950/60 border border-slate-100 dark:border-slate-800 rounded-xl px-4 py-3">
+          <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 flex items-center justify-center text-sm flex-shrink-0">
+            🫀
+          </div>
+
+          <div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              Organ to Donate
+            </p>
+            <p className="text-base font-bold text-indigo-600 dark:text-indigo-400 capitalize">
+              {userData.organType || "—"}
+            </p>
+          </div>
+        </div>
+
+        {/* Hospital */}
+        <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950/60 border border-slate-100 dark:border-slate-800 rounded-xl px-4 py-3">
+          <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center text-sm flex-shrink-0">
+            🏥
+          </div>
+
+          <div className="min-w-0">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              Hospital
+            </p>
+            <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
+              {userData.hospitalName || "—"}
+            </p>
+            {userData.hospitalCity && userData.hospitalCity !== "—" && (
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                {userData.hospitalCity}
+              </p>
+            )}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+)}
 
         {/* Filters */}
-        <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 mb-6 shadow-lg border border-white/20">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 mb-6 shadow-sm border border-slate-200 dark:border-slate-800">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <select
               value={filterBlood}
               onChange={(e) => setFilterBlood(e.target.value)}
-              className="px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 outline-none transition-all"
+              className="px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
             >
               <option value="">All Blood Groups</option>
               {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(b => (
@@ -469,7 +525,7 @@ useEffect(() => {
             <select
               value={filterOrgan}
               onChange={(e) => setFilterOrgan(e.target.value)}
-              className="px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 outline-none transition-all"
+              className="px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
             >
               <option value="">All Organs</option>
               {["Kidney", "Heart", "Liver", "Lung", "Eye", "Pancreas"].map(o => (
@@ -479,7 +535,7 @@ useEffect(() => {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-3 rounded-xl border-2 border-gray-200 dark:border-gray-700 dark:bg-gray-800 focus:border-indigo-500 outline-none transition-all"
+              className="px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
             >
               <option value="">All Statuses</option>
               <option value="Pending">Pending</option>
@@ -492,7 +548,7 @@ useEffect(() => {
                 setFilterOrgan("");
                 setFilterStatus("");
               }}
-              className="px-4 py-3 bg-gray-200 dark:bg-gray-700 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 transition-all font-medium"
+              className="px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-all font-semibold"
             >
               Reset Filters
             </button>
@@ -500,7 +556,7 @@ useEffect(() => {
         </div>
 
         {/* Tabs */}
-        <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-2 mb-6 inline-flex gap-2 shadow-lg border border-white/20">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-2 mb-6 flex gap-1.5 shadow-sm border border-slate-200 dark:border-slate-800 overflow-x-auto">
           {[
             { id: "overview", label: "Overview", icon: "📊" },
             { id: "matches", label: "My Matches", icon: "🔗" },
@@ -511,8 +567,8 @@ useEffect(() => {
               onClick={() => setActiveTab(tab.id)}
               className={`px-6 py-3 rounded-xl transition-all font-medium ${
                 activeTab === tab.id
-                  ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg"
-                  : "hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400"
+                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
+                  : "hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
               }`}
             >
               <span className="flex items-center gap-2">
@@ -529,7 +585,7 @@ useEffect(() => {
           {activeTab === "overview" && (
             <div className="grid grid-cols-1 gap-6">
               {/* Recent Matches */}
-              <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-white/20">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-800">
                 <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                   <span>🔔</span>
                   <span>Recent Matches</span>
@@ -538,10 +594,10 @@ useEffect(() => {
                   {deduplicatedMatches.slice(0, 5).map((match, idx) => (
                     <div
                       key={match.id}
-                      className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-all cursor-pointer"
+                      className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-sm transition-all cursor-pointer"
                       onClick={() => setSelectedMatch(match)}
                     >
-                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center text-white font-bold">
+                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center text-white text-xs font-bold">
                         {idx + 1}
                       </div>
                       <div className="flex-1">
@@ -561,7 +617,7 @@ useEffect(() => {
               </div>
 
               {/* Match Statistics */}
-              <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-white/20">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-800">
                 <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                   <span>📈</span>
                   <span>Match Statistics</span>
@@ -590,7 +646,7 @@ useEffect(() => {
 
           {/* Matches Tab */}
           {activeTab === "matches" && (
-            <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl p-6 shadow-lg border border-white/20">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-800">
               <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
                 <span>🔗</span>
                 <span>Your Matches</span>
@@ -598,7 +654,7 @@ useEffect(() => {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b-2 border-gray-200 dark:border-gray-700">
+                    <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-950/40">
                       <th className="text-left py-4 px-4 font-semibold">Recipient</th>
                       <th className="text-left py-4 px-4 font-semibold">Organ</th>
                       <th className="text-left py-4 px-4 font-semibold">Blood</th>
@@ -619,7 +675,7 @@ useEffect(() => {
                       deduplicatedMatches.map(match => (
                         <tr
                           key={match.id}
-                          className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-all"
+                          className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors"
                         >
                           <td className="py-4 px-4 font-medium">{match.recipientName}</td>
                           <td className="py-4 px-4">{match.organType}</td>
