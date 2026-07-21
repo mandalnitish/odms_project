@@ -10,6 +10,7 @@
     "deploy": "npm run build && firebase deploy --only hosting"
   },
   "dependencies": {
+    "@emailjs/browser": "^4.4.1",
     "@firebasegen/default-connector": "file:dataconnect-generated/js/default-connector",
     "@heroicons/react": "^2.2.0",
     "@react-google-maps/api": "^2.20.7",
