@@ -3,6 +3,23 @@ import AboutSection from "../components/AboutSection";
 import { useAuth } from "../context/AuthContext";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+
+// Per-icon animation: each one moves the way its subject would.
+const iconMotion = {
+  "❤️": {
+    animate: { scale: [1, 1.15, 1, 1.15, 1] },
+    transition: { duration: 1.4, repeat: Infinity, repeatDelay: 1.6, ease: "easeInOut" },
+  },
+  "📊": {
+    animate: { y: [0, -6, 0] },
+    transition: { duration: 1.8, repeat: Infinity, ease: "easeInOut" },
+  },
+  "🤝": {
+    animate: { rotate: [0, -8, 8, -4, 0] },
+    transition: { duration: 1.6, repeat: Infinity, repeatDelay: 1.2, ease: "easeInOut" },
+  },
+};
 
 export default function HomePage() {
   const { user, role } = useAuth();
@@ -99,9 +116,14 @@ export default function HomePage() {
                          hover:shadow-xl hover:bg-gray-50 dark:hover:bg-gray-700 hover:scale-105 transition-all duration-500 ease-in-out
                          relative before:absolute before:inset-0 before:rounded-xl before:bg-green-500/20 before:opacity-0 hover:before:opacity-30"
             >
-              <div className="text-green-600 dark:text-green-400 text-5xl mb-4 transition-transform duration-500 ease-in-out hover:scale-110">
+              <motion.div
+                className="text-green-600 dark:text-green-400 text-5xl mb-4"
+                animate={iconMotion[card.icon].animate}
+                transition={iconMotion[card.icon].transition}
+                whileHover={{ scale: 1.2 }}
+              >
                 {card.icon}
-              </div>
+              </motion.div>
               <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-gray-100 transition-colors duration-700 ease-in-out">
                 {card.title}
               </h3>

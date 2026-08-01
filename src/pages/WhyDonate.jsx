@@ -1,5 +1,22 @@
 import React, { useContext } from "react";
 import { DarkModeContext } from "../context/DarkModeContext";
+import { motion } from "framer-motion";
+
+// Per-icon animation: each one moves the way its subject would.
+const iconMotion = {
+  "❤️": {
+    animate: { scale: [1, 1.15, 1, 1.15, 1] },
+    transition: { duration: 1.4, repeat: Infinity, repeatDelay: 1.6, ease: "easeInOut" },
+  },
+  "🤝": {
+    animate: { rotate: [0, -8, 8, -4, 0] },
+    transition: { duration: 1.6, repeat: Infinity, repeatDelay: 1.2, ease: "easeInOut" },
+  },
+  "🌱": {
+    animate: { scale: [1, 1.1, 1], rotate: [0, 3, -3, 0] },
+    transition: { duration: 2.2, repeat: Infinity, ease: "easeInOut" },
+  },
+};
 
 export default function WhyDonate() {
   const { darkMode } = useContext(DarkModeContext);
@@ -36,7 +53,14 @@ export default function WhyDonate() {
             data-aos="fade-up"
             data-aos-delay={index * 150}
           >
-            <div className="text-5xl text-green-600 mb-4">{point.icon}</div>
+            <motion.div
+              className="text-5xl text-green-600 mb-4"
+              animate={iconMotion[point.icon].animate}
+              transition={iconMotion[point.icon].transition}
+              whileHover={{ scale: 1.2 }}
+            >
+              {point.icon}
+            </motion.div>
             <h3 className="text-xl font-semibold mb-3">{point.title}</h3>
             <p className="text-gray-700 dark:text-gray-300">{point.desc}</p>
           </div>

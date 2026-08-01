@@ -31,10 +31,13 @@ import {
   Calendar,
   Building2,
   MapPin,
+  UserPlus,
 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
 import { Link } from "react-router-dom";
+
+import AdminAddDoctor from "../components/AdminAddDoctor";
 
 // ----------------- UI HELPERS -----------------
 function Spinner() {
@@ -535,7 +538,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* ── View Toggle ── */}
-        <div className="flex gap-2 mb-6 bg-white dark:bg-gray-800 p-1 rounded-lg w-fit shadow-md">
+        <div className="flex flex-wrap gap-2 mb-6 bg-white dark:bg-gray-800 p-1 rounded-lg w-fit shadow-md">
           <button
             onClick={() => setViewMode("overview")}
             className={`px-6 py-2 rounded-md transition-all font-medium ${
@@ -576,9 +579,20 @@ export default function AdminDashboard() {
           >
             🚔 Police Verification
           </button>
+          <button
+            onClick={() => setViewMode("addDoctor")}
+            className={`px-6 py-2 rounded-md transition-all font-medium flex items-center gap-2 ${
+              viewMode === "addDoctor"
+                ? "bg-blue-600 text-white shadow-lg"
+                : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+            }`}
+          >
+            <UserPlus className="w-4 h-4" />
+            Add Doctor
+          </button>
         </div>
 
-        {/* ── Content: 3-way switch ── */}
+        {/* ── Content switch ── */}
         {viewMode === "overview" ? (
           <>
             {/* Stats Cards */}
@@ -627,7 +641,11 @@ export default function AdminDashboard() {
           // ── Live Tracking View ──
           <TrackingPage userRole="admin" />
         ) : viewMode === "police" ? (
+          // ── Police Verification View ──
           <PoliceVerificationAdmin />
+        ) : viewMode === "addDoctor" ? (
+          // ── Add Doctor View ──
+          <AdminAddDoctor />
         ) : (
           // ── User Table View ──
           <>

@@ -16,16 +16,25 @@ export default function SignupPage() {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
+  // Roles the public signup form is allowed to create.
+  // Doctor accounts are provisioned by an admin only — see AdminAddDoctor.
+  const PUBLIC_ROLES = ["donor", "recipient"];
+
   async function handleSignup(e) {
     e.preventDefault();
     setError(null);
 
+    // Belt-and-suspenders: even if role were tampered with client-side,
+    // refuse to submit anything outside the allowed public roles.
+    if (!PUBLIC_ROLES.includes(role)) {
+      setError("This role cannot be self-registered. Please contact an administrator.");
+      return;
+    }
+
     try {
-      // Create user with Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Save user data in Firestore with uid as doc id
       await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
         fullName,
@@ -38,7 +47,6 @@ export default function SignupPage() {
         createdAt: new Date(),
       });
 
-      // Redirect to dashboard or auth page after signup
       navigate("/");
     } catch (err) {
       setError(err.message);
@@ -101,8 +109,6 @@ export default function SignupPage() {
         >
           <option value="donor">Donor</option>
           <option value="recipient">Recipient</option>
-          <option value="doctor">Doctor</option>
-          <option value="admin">Admin</option>
         </select>
 
         <label className="block mb-1">Blood Group</label>

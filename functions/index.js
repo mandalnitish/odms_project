@@ -101,3 +101,6 @@ exports.simulateOrganTransport = onSchedule("every 2 minutes", async () => {
 
 // Export a single entrypoint
 exports.api = functions.https.onRequest(app);
+
+// functions/index.js — add this line alongside your existing exports
+exports.createDoctorAccount = require("./createDoctorAccount").createDoctorAccount;

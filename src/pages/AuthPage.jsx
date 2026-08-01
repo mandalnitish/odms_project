@@ -299,6 +299,16 @@ export default function AuthPage({ showLogo = true }) {
     setError("");
     setSuccess("");
 
+    // Public signup may only create donor/recipient accounts.
+    // Doctor accounts must be provisioned by an admin.
+    if (formData.role !== "donor" && formData.role !== "recipient") {
+      setError(
+        "This role cannot be self-registered. Please contact an administrator."
+      );
+      setLoading(false);
+      return;
+    }
+
     try {
       // -----------------------------------------------------
       // STEP 1: Create Firebase Authentication account
@@ -823,10 +833,6 @@ export default function AuthPage({ showLogo = true }) {
 
               <option value="recipient">
                 Recipient
-              </option>
-
-              <option value="doctor">
-                Doctor
               </option>
 
             </select>

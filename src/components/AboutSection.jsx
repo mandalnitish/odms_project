@@ -2,7 +2,28 @@
 import { useState } from "react";
 import { useInView } from "react-intersection-observer";
 import CountUp from "react-countup";
+import { motion } from "framer-motion";
 import aboutImage from "../assets/about-image.jpg"; // local image
+
+// Per-icon animation: each one moves the way its subject would.
+const iconMotion = {
+  "❤️": {
+    animate: { scale: [1, 1.15, 1, 1.15, 1] },
+    transition: { duration: 1.4, repeat: Infinity, repeatDelay: 1.6, ease: "easeInOut" },
+  },
+  "🩺": {
+    animate: { rotate: [0, -10, 10, -6, 0] },
+    transition: { duration: 1.6, repeat: Infinity, repeatDelay: 1.4, ease: "easeInOut" },
+  },
+  "💖": {
+    animate: { scale: [1, 1.2, 1] },
+    transition: { duration: 1.3, repeat: Infinity, repeatDelay: 1.5, ease: "easeInOut" },
+  },
+  "🤖": {
+    animate: { y: [0, -4, 0], rotate: [0, -3, 3, 0] },
+    transition: { duration: 2, repeat: Infinity, ease: "easeInOut" },
+  },
+};
 
 export default function AboutSection() {
   const [hasAnimated, setHasAnimated] = useState(false);
@@ -64,9 +85,14 @@ export default function AboutSection() {
                   hover:shadow-2xl hover:scale-105 hover:shadow-green-500/40`}
                 style={{ transitionDelay: `${idx * 100}ms` }}
               >
-                <div className="text-4xl mb-2 text-green-600 dark:text-green-400">
+                <motion.div
+                  className="text-4xl mb-2 text-green-600 dark:text-green-400"
+                  animate={iconMotion[stat.icon].animate}
+                  transition={iconMotion[stat.icon].transition}
+                  whileHover={{ scale: 1.2 }}
+                >
                   {stat.icon}
-                </div>
+                </motion.div>
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
                   {stat.title}
                 </h3>

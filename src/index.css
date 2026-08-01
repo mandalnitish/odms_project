@@ -158,3 +158,36 @@
 .chat-messages-container::-webkit-scrollbar-thumb:hover {
   background: rgba(11, 20, 26, 0.3);
 }
+
+
+/* Thin, styled scrollbar */
+* {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: theme("colors.green.600") transparent; /* Firefox thumb / track */
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: theme("colors.green.600");
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: theme("colors.green.700");
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background-color: theme("colors.green.500");
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background-color: theme("colors.green.400");
+}

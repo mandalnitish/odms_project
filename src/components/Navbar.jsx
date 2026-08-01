@@ -1,6 +1,6 @@
 // src/components/Navbar.jsx
 import { Link, NavLink, useLocation } from "react-router-dom";
-
+import { MapPin } from "lucide-react";
 
 export default function Navbar() {
   const location = useLocation();
@@ -9,37 +9,46 @@ export default function Navbar() {
   const hideLoginButton = location.pathname.startsWith("/auth");
 
   return (
-    <nav className="bg-white dark:bg-gray-800 shadow-md p-4 flex justify-between items-center transition-colors duration-500">
-      <div className="text-xl font-bold text-green-700 dark:text-green-400">Organ Donor</div>
-      <div className="space-x-4">
-        {!hideLoginButton && (
-          <Link
-            to="/auth?tab=login"
-            className="px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded hover:bg-green-700 dark:hover:bg-green-400 transition-colors"
-          >
-            Login
-          </Link>
-        )}
+    <div className="sticky top-0 z-50 px-3 pt-3 sm:px-4">
+      <nav className="max-w-5xl mx-auto flex items-center justify-between h-14 px-4 sm:px-5 rounded-2xl border border-gray-200/70 dark:border-gray-800 bg-white/75 dark:bg-gray-900/75 backdrop-blur-xl shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.15)] transition-colors duration-500">
         <Link
-          to="/auth?tab=signup"
-          className="px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded hover:bg-green-700 dark:hover:bg-green-400 transition-colors"
+          to="/"
+          className="text-[15px] font-semibold tracking-tight text-gray-900 dark:text-white"
         >
-          Signup
+          Organ<span className="text-gray-400 dark:text-gray-500 font-normal">Donor</span>
         </Link>
-      </div>
-      // Inside the nav links div, add:
-<NavLink
-  to="/tracking"
-  className={({ isActive }) =>
-    `px-4 py-2 rounded transition-colors ${
-      isActive
-        ? "bg-green-700 text-white"
-        : "text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900"
-    }`
-  }
->
-  🗺️ Live Tracking
-</NavLink>
-    </nav>
+
+        <div className="flex items-center gap-1.5">
+          <NavLink
+            to="/tracking"
+            className={({ isActive }) =>
+              `flex items-center gap-1.5 px-3.5 py-2 rounded-full text-[13px] font-medium transition-colors ${
+                isActive
+                  ? "bg-gray-900 dark:bg-white text-white dark:text-gray-900"
+                  : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+              }`
+            }
+          >
+            <MapPin size={14} />
+            Live Tracking
+          </NavLink>
+
+          {!hideLoginButton && (
+            <Link
+              to="/auth?tab=login"
+              className="px-4 py-2 text-[13px] font-medium rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            >
+              Log in
+            </Link>
+          )}
+          <Link
+            to="/auth?tab=signup"
+            className="px-4 py-2 text-[13px] font-medium rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 hover:opacity-85 transition-opacity"
+          >
+            Sign up
+          </Link>
+        </div>
+      </nav>
+    </div>
   );
 }
