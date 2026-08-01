@@ -1,11 +1,15 @@
 // src/components/AdminAddDoctor.jsx
 import React, { useState } from "react";
-import { getFunctions, httpsCallable } from "firebase/functions";
-import { app } from "../firebase"; // adjust if your firebase.js exports differently
+import { initializeApp, deleteApp } from "firebase/app";
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  updateProfile,
+  signOut,
+} from "firebase/auth";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { db, firebaseConfig } from "../firebase";
 import { UserPlus, CheckCircle, AlertCircle, Eye, EyeOff, RefreshCw } from "lucide-react";
-
-const functions = getFunctions(app);
-const createDoctorAccount = httpsCallable(functions, "createDoctorAccount");
 
 function generatePassword() {
   // Simple readable temp password: e.g. "Doctor-7f3k9d"
@@ -59,18 +63,85 @@ export default function AdminAddDoctor() {
     e.preventDefault();
     setError("");
     setSuccess(null);
+
+    if (formData.password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+
     setLoading(true);
 
-    try {
-      const result = await createDoctorAccount(formData);
+    // A temporary, isolated Firebase app instance — this lets us call
+    // createUserWithEmailAndPassword to make the doctor's account
+    // WITHOUT signing the currently logged-in admin out of their own
+    // session. The admin's real session lives on the default app
+    // (imported as `auth`/`db` elsewhere); this one is thrown away
+    // immediately after use.
+    const tempAppName = `doctor-creation-${Date.now()}`;
+    const tempApp = initializeApp(firebaseConfig, tempAppName);
+    const tempAuth = getAuth(tempApp);
 
-      if (result.data?.success) {
-        setSuccess({ email: formData.email, password: formData.password });
-        resetForm();
-      }
+    try {
+      // Step 1: create the Auth account on the temporary app instance
+      const userCredential = await createUserWithEmailAndPassword(
+        tempAuth,
+        formData.email.trim().toLowerCase(),
+        formData.password
+      );
+      const newUser = userCredential.user;
+
+      await updateProfile(newUser, {
+        displayName: formData.fullName.trim(),
+      });
+
+      // Step 2: write the Firestore profile using the ADMIN's normal,
+      // already-authenticated `db` connection — this is what your
+      // Firestore rules check against (getUserRole() on the admin's
+      // uid), so the "doctor/admin have write access" rule applies.
+      await setDoc(doc(db, "users", newUser.uid), {
+        uid: newUser.uid,
+        fullName: formData.fullName.trim(),
+        email: formData.email.trim().toLowerCase(),
+        mobile: formData.mobile.trim(),
+        address: formData.address.trim(),
+        specialization: formData.specialization.trim(),
+        hospital: formData.hospital.trim(),
+        role: "doctor",
+        documentsVerified: true,
+        accountStatus: "active",
+        createdAt: serverTimestamp(),
+      });
+
+      // Step 3: clean up the temporary auth session/app so it doesn't
+      // linger in memory or in the browser's IndexedDB auth storage.
+      await signOut(tempAuth);
+      await deleteApp(tempApp);
+
+      setSuccess({ email: formData.email, password: formData.password });
+      resetForm();
     } catch (err) {
       console.error("Failed to create doctor account:", err);
-      setError(err.message || "Failed to create doctor account.");
+
+      switch (err.code) {
+        case "auth/email-already-in-use":
+          setError("An account already exists with this email address.");
+          break;
+        case "auth/invalid-email":
+          setError("Please enter a valid email address.");
+          break;
+        case "auth/weak-password":
+          setError("Password is too weak. Please use at least 6 characters.");
+          break;
+        default:
+          setError(err.message || "Failed to create doctor account.");
+      }
+
+      // Best-effort cleanup even on failure
+      try {
+        await deleteApp(tempApp);
+      } catch (_) {
+        /* ignore cleanup errors */
+      }
     } finally {
       setLoading(false);
     }

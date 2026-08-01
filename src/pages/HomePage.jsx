@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import heroBg from "../assets/hero-bg.avif";
 
 // Per-icon animation: each one moves the way its subject would.
 const iconMotion = {
@@ -74,8 +75,7 @@ export default function HomePage() {
       <section
         className="relative bg-cover bg-center h-screen flex items-center justify-center text-white transition-colors duration-700 ease-in-out"
         style={{
-          backgroundImage:
-            "url('https://images.unsplash.com/photo-1584515933487-779824d29309?ixlib=rb-4.0.3&auto=format&fit=crop&w=1950&q=80')",
+          backgroundImage: `url(${heroBg})`,
         }}
       >
         <div className="absolute inset-0 bg-black/50 dark:bg-black/70 transition-colors duration-700 ease-in-out"></div>

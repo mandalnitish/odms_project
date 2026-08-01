@@ -17,7 +17,7 @@ import { getStorage } from "firebase/storage"; // ADDED
 // ---------------------------
 // Your Firebase config
 // ---------------------------
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyCSFvwCO0DLk6PlCTqP-JpHyGov0IG2S5Q",
   authDomain: "organ-donor-management-system.firebaseapp.com",
   projectId: "organ-donor-management-system",

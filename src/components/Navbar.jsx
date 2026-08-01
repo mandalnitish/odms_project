@@ -1,21 +1,50 @@
 // src/components/Navbar.jsx
 import { Link, NavLink, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { MapPin } from "lucide-react";
+import { motion } from "framer-motion";
+import logo from "../assets/logo.png";
 
 export default function Navbar() {
   const location = useLocation();
+  const [scrolled, setScrolled] = useState(false);
 
   // Hide login button if on /auth page
   const hideLoginButton = location.pathname.startsWith("/auth");
 
+  // Slightly increase blur/shadow once the page has scrolled, same
+  // behavior as Header.jsx, so both navs feel like one system.
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
     <div className="sticky top-0 z-50 px-3 pt-3 sm:px-4">
-      <nav className="max-w-5xl mx-auto flex items-center justify-between h-14 px-4 sm:px-5 rounded-2xl border border-gray-200/70 dark:border-gray-800 bg-white/75 dark:bg-gray-900/75 backdrop-blur-xl shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.15)] transition-colors duration-500">
-        <Link
-          to="/"
-          className="text-[15px] font-semibold tracking-tight text-gray-900 dark:text-white"
-        >
-          Organ<span className="text-gray-400 dark:text-gray-500 font-normal">Donor</span>
+      <motion.nav
+        initial={{ opacity: 0, y: -12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+        className={`max-w-5xl mx-auto flex items-center justify-between h-14 px-4 sm:px-5 rounded-2xl border transition-all duration-300 ${
+          scrolled
+            ? "border-gray-200/70 dark:border-gray-800 bg-white/85 dark:bg-gray-900/85 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.2)]"
+            : "border-gray-200/50 dark:border-gray-800/60 bg-white/60 dark:bg-gray-900/60 shadow-[0_1px_2px_rgba(0,0,0,0.03)]"
+        } backdrop-blur-xl`}
+      >
+        <Link to="/" className="flex items-center gap-2">
+          <img
+            src={logo}
+            alt=""
+            draggable={false}
+            onContextMenu={(e) => e.preventDefault()}
+            className="w-7 h-7 object-contain select-none"
+            style={{ WebkitUserDrag: "none", userSelect: "none" }}
+          />
+          <span className="text-[15px] font-semibold tracking-tight text-gray-900 dark:text-white">
+            Organ<span className="text-gray-400 dark:text-gray-500 font-normal">Donor</span>
+          </span>
         </Link>
 
         <div className="flex items-center gap-1.5">
@@ -48,7 +77,7 @@ export default function Navbar() {
             Sign up
           </Link>
         </div>
-      </nav>
+      </motion.nav>
     </div>
   );
 }

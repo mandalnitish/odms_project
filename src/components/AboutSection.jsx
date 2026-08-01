@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useInView } from "react-intersection-observer";
 import CountUp from "react-countup";
 import { motion } from "framer-motion";
-import aboutImage from "../assets/about-image.jpg"; // local image
+import aboutImage from "../assets/about-image.png"; // local image, transparent background
 
 // Per-icon animation: each one moves the way its subject would.
 const iconMotion = {
@@ -50,12 +50,20 @@ export default function AboutSection() {
       className="py-16 bg-gray-50 dark:bg-gray-900 transition-colors duration-700 ease-in-out"
     >
       <div className="max-w-6xl mx-auto px-4 flex flex-col md:flex-row items-center md:space-x-12">
-        {/* Image */}
-        <div className="md:w-1/2 mb-8 md:mb-0" data-aos="fade-right">
+        {/* Image — sits on a card that flips with dark mode; since the
+            artwork itself now has a transparent background, there's no
+            leftover white rectangle to clash against in dark mode. */}
+        <div
+          className="md:w-1/2 mb-8 md:mb-0 rounded-xl shadow-lg p-6 bg-white dark:bg-gray-800 transition-colors duration-700 ease-in-out"
+          data-aos="fade-right"
+        >
           <img
             src={aboutImage}
             alt="About Us"
-            className="rounded-xl shadow-lg w-full object-cover transition-transform duration-700 ease-in-out hover:scale-105"
+            draggable={false}
+            onContextMenu={(e) => e.preventDefault()}
+            className="w-full object-contain select-none"
+            style={{ WebkitUserDrag: "none", userSelect: "none" }}
           />
         </div>
 
