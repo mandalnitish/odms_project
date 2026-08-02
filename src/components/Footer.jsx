@@ -37,15 +37,18 @@ export default function Footer() {
           green without making the whole footer green */}
       <div className="h-px w-full bg-gradient-to-r from-transparent via-green-500/40 to-transparent" />
 
-      <div className="max-w-6xl mx-auto px-6 py-16">
-        {/* TOP GRID */}
+      <div className="max-w-6xl mx-auto px-5 sm:px-6 py-10 sm:py-14 md:py-16">
+        {/* TOP GRID
+            - 1 column on phones (everything stacks, centered)
+            - 2 columns on tablets
+            - 4 columns on desktop */}
         <motion.div
           variants={container}
-          className="grid gap-10 sm:grid-cols-2 md:grid-cols-4"
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 sm:gap-10 text-center sm:text-left"
         >
           {/* Branding */}
           <motion.div variants={item} className="sm:col-span-2 md:col-span-1">
-            <div className="flex items-start gap-2.5 mb-3">
+            <div className="flex items-start justify-center sm:justify-start gap-2.5 mb-3">
               <img
                 src={logo}
                 alt=""
@@ -54,11 +57,11 @@ export default function Footer() {
                 className="w-9 h-9 object-contain select-none shrink-0 mt-0.5"
                 style={{ WebkitUserDrag: "none", userSelect: "none" }}
               />
-              <span className="text-[15px] font-semibold tracking-tight leading-snug text-green-500">
+              <span className="text-[15px] font-semibold tracking-tight leading-snug text-green-500 text-left">
                 Organ Donor Management System
               </span>
             </div>
-            <p className="text-sm text-gray-500 leading-relaxed max-w-xs">
+            <p className="text-sm text-gray-500 leading-relaxed max-w-xs mx-auto sm:mx-0">
               A secure, AI-powered platform connecting donors, recipients,
               doctors, and hospitals to save lives.
             </p>
@@ -132,7 +135,7 @@ export default function Footer() {
             <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-300 mb-4">
               System
             </h3>
-            <div className="flex flex-wrap gap-2 mb-3">
+            <div className="flex flex-wrap justify-center sm:justify-start gap-2 mb-3">
               {["Secure", "Verified", "Role-based"].map((tag) => (
                 <span
                   key={tag}
@@ -149,12 +152,12 @@ export default function Footer() {
         </motion.div>
 
         {/* DIVIDER */}
-        <motion.div variants={item} className="border-t border-gray-800/80 my-10" />
+        <motion.div variants={item} className="border-t border-gray-800/80 my-8 sm:my-10" />
 
         {/* BOTTOM BAR */}
         <motion.div
           variants={item}
-          className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-600"
+          className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-600 text-center sm:text-left"
         >
           <span>© {new Date().getFullYear()} OrganDonor. All rights reserved.</span>
           <span className="flex items-center gap-1.5">
